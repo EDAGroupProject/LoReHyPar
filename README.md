@@ -4,6 +4,8 @@ Logic Replication Hyper Partition
 
 ## how to compile
 
+you can use the build.sh script to compile the project, or
+
 ```bash
 mkdir build
 cd build

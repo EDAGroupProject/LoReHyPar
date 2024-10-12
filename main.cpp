@@ -7,5 +7,6 @@ int main(int argc, char **argv) {
     assert(argc <= 2);
     LoReHyPar hypar(argc == 2 ? argv[1] : "");
     hypar.printSummary(std::cout);
+    hypar.test_contract();
     return 0;
 }

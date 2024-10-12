@@ -12,6 +12,6 @@ add_executable(hypar_shell main.cpp)
 
 include_directories(${PROJECT_SOURCE_DIR})
 
-add_library(${PROJECT_NAME} hypar.cpp)
+add_library(${PROJECT_NAME} hypar.cpp contract.cpp)
 
 target_link_libraries(hypar_shell ${PROJECT_NAME})

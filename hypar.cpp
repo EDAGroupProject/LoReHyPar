@@ -45,13 +45,16 @@ void LoReHyPar::readNet(std::ifstream &net){
         iss >> name;
         id = node2id[name];
         nets.back().nodes.emplace_back(id);
+        nets.back().source = id;
         nodes[id].nets.emplace_back(nets.size() - 1);
+        nodes[id].isSou[nets.size() - 1] = true;
         iss >> nets.back().weight;
         while (iss >> name) {
             id = node2id[name];
             nets.back().nodes.emplace_back(id);
             nodes[id].nets.emplace_back(nets.size() - 1);
         }
+        nets.back().size = nets.back().nodes.size();
     }
 }
 
@@ -91,9 +94,9 @@ void LoReHyPar::readTopo(std::ifstream &topo){
 
 void LoReHyPar::printSummary(std::ostream &out){
     out << "Nodes: " << nodes.size() << std::endl;
-    for (int i = 0; i < nodes.size(); i++){
+    for (size_t i = 0; i < nodes.size(); i++){
         auto &node = nodes[i];
-        out <<"  node "<< i << ": " << node.name << "\n    resLoad: ";
+        out << "  node " << i << ": " << node.name << "-" << std::to_string(node.isRep) << "\n    resLoad: ";
         for (int i = 0; i < NUM_RES; i++){
             out << node.resLoad[i] << " ";
         }
@@ -104,17 +107,19 @@ void LoReHyPar::printSummary(std::ostream &out){
         out << std::endl;
     }
     out << "Nets: " << nets.size() << std::endl;
-    for (int i = 0; i < nets.size(); i++){
+    for (size_t i = 0; i < nets.size(); i++){
         auto &net = nets[i];
         out << "  net " << i << ": \n    weight: ";
-        out << net.weight << "\n    nodes: ";
-        for (auto node : net.nodes){
+        out << net.weight << "\n    size: ";
+        out << net.size << "\n    source: ";
+        out << net.source << "\n    nodes: ";
+        for (int node : net.nodes){
             out << node << " ";
         }
         out << std::endl;
     }
     out << "FPGAs: " << fpgas.size() << std::endl;
-    for (int i = 0; i < fpgas.size(); i++){
+    for (size_t i = 0; i < fpgas.size(); i++){
         auto &fpga = fpgas[i];
         out << "  fpga " << i << ": " << fpga.name << "\n    maxConn: " << fpga.maxConn << "\n    resCap: ";
         for (int i = 0; i < NUM_RES; i++){
@@ -152,5 +157,20 @@ void LoReHyPar::printOut(std::ofstream &out){
             }
         }
         out << std::endl;
+    }
+}
+
+void LoReHyPar::test_contract(){
+    int u = 0;
+    for (size_t v = 1; v < nodes.size(); ++v){
+        _contract(u, v);
+        std::cout << "Contract " << u << " " << v << std::endl;
+        printSummary(std::cout);
+    }
+    while (!cont_meme.empty()){
+        auto [u, v] = cont_meme.top();
+        _uncontract(u, v);
+        std::cout << "Uncontract " << u << " " << v << std::endl;
+        printSummary(std::cout);
     }
 }
