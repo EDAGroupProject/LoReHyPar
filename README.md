@@ -17,8 +17,10 @@ then you can find the executable file in the build directory named `hypar_shell`
 
 ## how to run
 
+you can use the run.sh script to run the project, or
+
 ```bash
-./hypar_shell "path/to/input"
+./hypar_shell "path/to/input/dir/"
 ```
 
 for example, if you want to run the sample01 testcase(i.e. ../testcase/sample01/design.*), you can run
@@ -27,4 +29,4 @@ for example, if you want to run the sample01 testcase(i.e. ../testcase/sample01/
 ./hypar_shell "../testcase/sample01/"
 ```
 
-no "path/to/input" means the default input files are in the same directory as the executable file.
+no "path/to/input/dir/" means the default input files are in the same directory as the executable file.

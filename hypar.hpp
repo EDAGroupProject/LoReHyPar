@@ -2,8 +2,8 @@
 #define _HYPAR_FLAG
 
 #include <vector>
-#include <stack>
 #include <unordered_map>
+#include <set>
 #include <string>
 #include <iostream>
 #include <fstream>
@@ -17,36 +17,35 @@ struct pair_hash {
     }
 };
 
-struct node{
+struct node {
     std::string name{};
     int isRep{}; // is replicated node, dont know how to handle this
+    int fpga{-1}; // easy to signal the partition
     int resLoad[NUM_RES]{};
     std::vector<int> reps{};
-    std::vector<int> nets{};
+    std::set<int> nets{};
     std::unordered_map<int, bool> isSou{};
 };
 
-struct net{
+struct net {
     int weight{};
     int source{};
     size_t size{};
-    std::vector<int> nodes; //only when the source is separated from the rest of the nodes, the hop is increased
+    std::vector<int> nodes;
 };
 
-struct fpga{
+struct fpga {
     std::string name{};
-    int maxConn{};
-    int resCap[NUM_RES]{};
+    int maxConn{}, usedConn{};
+    int resCap[NUM_RES]{}, resUsed[NUM_RES]{};
     std::vector<int>neighbors{};
     std::vector<int>nodes{};
 };
 
-struct nodes_List{
-    int net{};
-    nodes_List *next{};
-};
+class ParFunc;
 
-class LoReHyPar{
+class LoReHyPar {
+    std::string path; // path/to/input/dir/ with the last '/'
     std::unordered_map<std::string, int> node2id;
     std::unordered_map<std::string, int> fpga2id;
     std::vector<node> nodes;
@@ -54,10 +53,9 @@ class LoReHyPar{
     std::vector<fpga> fpgas;
     int maxHop;
     std::vector<std::vector<int>> fpgaMap;
+    int np; // number of partitions
 
-    std::stack<std::pair<int, int>> cont_meme; // record the order of contraction and uncontraction
-    void _contract(int u, int v); // contract v into u
-    void _uncontract(int u, int v); // uncontract v from u
+    friend class ParFunc;
 
 public:
     LoReHyPar(const std::string &path = "");
@@ -70,7 +68,8 @@ public:
     void printSummary(std::ostream &out);
     void printOut(std::ofstream &out);
 
-    void test_contract();
+    void test();
+    void run();
 };
 
 #endif

@@ -1,9 +1,10 @@
 #include <hypar.hpp>
+#include <funcs.hpp>
 #include <cassert>
 #include <sstream>
 #include <iomanip>
 
-LoReHyPar::LoReHyPar(const std::string &path){
+LoReHyPar::LoReHyPar(const std::string &path): path(path){
     std::ifstream info(path + "design.info"), are(path + "design.are"), net(path + "design.net"), topo(path + "design.topo");
     assert(info && are && net && topo);
     readInfo(info);
@@ -46,13 +47,13 @@ void LoReHyPar::readNet(std::ifstream &net){
         id = node2id[name];
         nets.back().nodes.emplace_back(id);
         nets.back().source = id;
-        nodes[id].nets.emplace_back(nets.size() - 1);
+        nodes[id].nets.insert(nets.size() - 1);
         nodes[id].isSou[nets.size() - 1] = true;
         iss >> nets.back().weight;
         while (iss >> name) {
             id = node2id[name];
             nets.back().nodes.emplace_back(id);
-            nodes[id].nets.emplace_back(nets.size() - 1);
+            nodes[id].nets.insert(nets.size() - 1);
         }
         nets.back().size = nets.back().nodes.size();
     }
@@ -60,9 +61,9 @@ void LoReHyPar::readNet(std::ifstream &net){
 
 void LoReHyPar::readTopo(std::ifstream &topo){
     topo >> maxHop;
-    int n = fpgas.size();
-    fpgaMap.assign(n, std::vector<int>(n, maxHop + 1)); // maxHop + 1 means no connection
-    for (int i = 0; i < n; i++){
+    np = fpgas.size();
+    fpgaMap.assign(np, std::vector<int>(np, maxHop + 1)); // maxHop + 1 means no connection
+    for (int i = 0; i < np; i++){
         fpgaMap[i][i] = 0; // distance to itself is 0, neccessary for floyd-warshall
     }
     std::string name1, name2;
@@ -74,17 +75,17 @@ void LoReHyPar::readTopo(std::ifstream &topo){
         fpgas[id2].neighbors.emplace_back(id1);
         fpgaMap[id1][id2] = fpgaMap[id2][id1] = 1;
     }
-    for (int k = 0; k < n; k++){
-        for (int i = 0; i < n; i++){
-            for (int j = 0; j < n; j++){
+    for (int k = 0; k < np; k++){
+        for (int i = 0; i < np; i++){
+            for (int j = 0; j < np; j++){
                 if (fpgaMap[i][j] > fpgaMap[i][k] + fpgaMap[k][j]){
                     fpgaMap[i][j] = fpgaMap[i][k] + fpgaMap[k][j];
                 }
             }
         }
     }
-    for (int i = 0; i < n; i++){
-            for (int j = 0; j < n; j++){
+    for (int i = 0; i < np; i++){
+            for (int j = 0; j < np; j++){
                 if(fpgaMap[i][j] > maxHop){
                     fpgaMap[i][j] = -1;
                 }
@@ -160,17 +161,18 @@ void LoReHyPar::printOut(std::ofstream &out){
     }
 }
 
-void LoReHyPar::test_contract(){
-    int u = 0;
-    for (size_t v = 1; v < nodes.size(); ++v){
-        _contract(u, v);
-        std::cout << "Contract " << u << " " << v << std::endl;
-        printSummary(std::cout);
-    }
-    while (!cont_meme.empty()){
-        auto [u, v] = cont_meme.top();
-        _uncontract(u, v);
-        std::cout << "Uncontract " << u << " " << v << std::endl;
-        printSummary(std::cout);
-    }
+void LoReHyPar::test(){
+    ParFunc pf(*this);
+    pf._test_contract(*this);
+}
+
+void LoReHyPar::run() {
+    ParFunc pf(*this);
+    pf.preprocessing(*this);
+    pf.coarsen(*this);
+    pf.initial_partition(*this);
+    pf.map_fpga(*this);
+    pf.refine(*this);
+    std::ofstream out(path + "design.fpga.out");
+    printOut(out);
 }
