@@ -13,20 +13,18 @@ cmake ../
 make
 ```
 
-then you can find the executable file in the build directory named `hypar_shell`.
+then you can find the executable file in the build directory named `partitioner`.
 
 ## how to run
 
 you can use the run.sh script to run the project, or
 
 ```bash
-./hypar_shell "path/to/input/dir/"
+./partitioner -t <input/directory> -s <output/file>
 ```
 
-for example, if you want to run the sample01 testcase(i.e. ../testcase/sample01/design.*), you can run
+for example:
 
 ```bash
-./hypar_shell "../testcase/sample01/"
+./partitioner -t /home/public/testcase/sample01 -s /home/team01/sample01/design.fpga.out
 ```
-
-no "path/to/input/dir/" means the default input files are in the same directory as the executable file.

@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -e
 mkdir -p build
 cd build
 cmake ../
@@ -8,8 +8,8 @@ make
 
 if [ $? -eq 0 ]; then
     echo "Build succeeded."
-    # ./hypar_shell ../testcase/case01/ > case01.out
-    ./hypar_shell ../testcase/sample01/ > sample01.out
+    # ./hypar_shell -s ../testcase/sample01 -t ../testcase/sample01/design.fpga.out
+    ./hypar_shell -s ../testcase/case01 -t ../testcase/case01/design.fpga.out
     if [ $? -eq 0 ]; then
         echo "Test succeeded."
     else
