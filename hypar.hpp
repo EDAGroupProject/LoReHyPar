@@ -17,10 +17,13 @@
 extern std::random_device rd;
 extern std::mt19937 global_rng;
 
-struct pair_hash {
+struct pair_hash final {
     template <class T1, class T2>
-    std::size_t operator() (const std::pair<T1, T2> &pair) const {
-        return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+    std::size_t operator() (const std::pair<T1, T2> &pair) const noexcept{
+        uintmax_t hash = std::hash<T1>{}(pair.first);
+        hash <<= sizeof(uintmax_t) * 4; 
+        hash ^= std::hash<T2>{}(pair.second);
+        return std::hash<uintmax_t>{}(hash);
     }
 };
 
@@ -38,18 +41,27 @@ struct net {
     int weight{};
     int source{};
     size_t size{};
-    std::vector<int> nodes;
+    std::vector<int> nodes{};
 };
 
 struct fpga {
     std::string name{};
     int maxConn{}, usedConn{};
     int resCap[NUM_RES]{}, resUsed[NUM_RES]{};
+    bool valid{true}; // default true, if the fpga is invalid, set it to false
     std::vector<int>neighbors{};
     std::vector<int>nodes{};
-};
 
-class ParFunc;
+    void query_validity(){
+        for (int i = 0; i < NUM_RES; ++i){
+            if (resUsed[i] > resCap[i]){
+                valid = false;
+                break;
+            }
+        }
+        valid = usedConn <= maxConn;
+    }
+};
 
 class HyPar {
 protected:
@@ -93,10 +105,10 @@ private:
     void _detect_para_singv_net(); // detect and remove parallel nets or single vertex nets
     void _init_ceil_mean_res();
     bool _contract_eligible(int u, int v); // check if u and v are eligible to be contracted
-    bool _fpga_add_res(int f, int u);
-    void _fpga_add_res_force(int f, int u);
-    bool _fpga_cal_conn(int f); // @todo: now full update, maybe we can incrementally update the connection
-    void _fpga_cal_conn_force(int f);
+    bool _fpga_add_try(int f, int u);
+    bool _fpga_add_force(int f, int u);
+    bool _fpga_remove_force(int f, int u);
+    void _cal_refine_gain(int node, int f, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
 
     // test functions
     void _test_contract(std::ofstream &out);
@@ -107,23 +119,25 @@ private:
     void preprocessing();
 
     // Coarsening
+    void coarsen();
     bool coarsen_naive();
     // @todo: detect&remove parallel nets or single vertex nets
-    void coarsen();
 
     // Initial Partitioning
+    void initial_partition();
     void bfs_partition();
     // @todo: other partitioning methods to enrich the portfolio
-    void initial_partition();
     
     // Map FGPA
     // @todo: mapping function
     void map_fpga();
 
     // Refinement
-    // @todo: refinement function
     void refine();
-
+    void refine_naive();
+    void k_way_localized_refine();
+    void random_validity_refine();
+        
     // Replication
     // @todo: the implementation of the replication
 
@@ -143,6 +157,7 @@ public:
     ParFunc(const HyPar &h) : HyPar(h) {}
     void test(std::string testOutput = "test.out");
     void run();
+    void evaluate();
 };
 
 #endif

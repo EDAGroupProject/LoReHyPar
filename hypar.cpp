@@ -24,7 +24,7 @@ void HyPar::readInfo(std::ifstream &info){
         fpga2id[name] = fpgas.size();
         fpgas.emplace_back(fpga{name});
         info >> fpgas.back().maxConn;
-        for (int i = 0; i < NUM_RES; i++){
+        for (int i = 0; i < NUM_RES; ++i){
             info >> fpgas.back().resCap[i];
         }
     }
@@ -35,7 +35,7 @@ void HyPar::readAre(std::ifstream &are){
     while(are >> name){
         node2id[name] = nodes.size();
         nodes.emplace_back(node{name});
-        for (int i = 0; i < NUM_RES; i++){
+        for (int i = 0; i < NUM_RES; ++i){
             are >> nodes.back().resLoad[i];
         }
     }
@@ -68,7 +68,7 @@ void HyPar::readTopo(std::ifstream &topo){
     topo >> maxHop;
     K = fpgas.size();
     fpgaMap.assign(K, std::vector<int>(K, maxHop + 1)); // maxHop + 1 means no connection
-    for (int i = 0; i < K; i++){
+    for (int i = 0; i < K; ++i){
         fpgaMap[i][i] = 0; // distance to itself is 0, neccessary for floyd-warshall
     }
     std::string name1, name2;
@@ -81,7 +81,7 @@ void HyPar::readTopo(std::ifstream &topo){
         fpgaMap[id1][id2] = fpgaMap[id2][id1] = 1;
     }
     for (int k = 0; k < K; k++){
-        for (int i = 0; i < K; i++){
+        for (int i = 0; i < K; ++i){
             for (int j = 0; j < K; j++){
                 if (fpgaMap[i][j] > fpgaMap[i][k] + fpgaMap[k][j]){
                     fpgaMap[i][j] = fpgaMap[i][k] + fpgaMap[k][j];
@@ -89,10 +89,10 @@ void HyPar::readTopo(std::ifstream &topo){
             }
         }
     }
-    for (int i = 0; i < K; i++){
+    for (int i = 0; i < K; ++i){
             for (int j = 0; j < K; j++){
                 if(fpgaMap[i][j] > maxHop){
-                    fpgaMap[i][j] = -1;
+                    fpgaMap[i][j] = 64; // @warning: a large number to indicate no connection
                 }
             }
         }
@@ -100,10 +100,10 @@ void HyPar::readTopo(std::ifstream &topo){
 
 void HyPar::printSummary(std::ostream &out){
     out << "Nodes: " << nodes.size() << std::endl;
-    for (size_t i = 0; i < nodes.size(); i++){
+    for (size_t i = 0; i < nodes.size(); ++i){
         auto &node = nodes[i];
         out << "  node " << i << ": " << node.name << "-" << std::to_string(node.isRep) << "\n    resLoad: ";
-        for (int i = 0; i < NUM_RES; i++){
+        for (int i = 0; i < NUM_RES; ++i){
             out << node.resLoad[i] << " ";
         }
         out << "\n    nets: ";
@@ -117,7 +117,7 @@ void HyPar::printSummary(std::ostream &out){
         out << "\n    fpga: " << node.fpga << std::endl;
     }
     out << "Nets: " << nets.size() << std::endl;
-    for (size_t i = 0; i < nets.size(); i++){
+    for (size_t i = 0; i < nets.size(); ++i){
         auto &net = nets[i];
         out << "  net " << i << ": \n    weight: ";
         out << net.weight << "\n    size: ";
@@ -129,10 +129,10 @@ void HyPar::printSummary(std::ostream &out){
         out << std::endl;
     }
     out << "FPGAs: " << fpgas.size() << std::endl;
-    for (size_t i = 0; i < fpgas.size(); i++){
+    for (size_t i = 0; i < fpgas.size(); ++i){
         auto &fpga = fpgas[i];
         out << "  fpga " << i << ": " << fpga.name << "\n    maxConn: " << fpga.maxConn << "\n    resCap: ";
-        for (int i = 0; i < NUM_RES; i++){
+        for (int i = 0; i < NUM_RES; ++i){
             out << fpga.resCap[i] << " ";
         }
         out << "\n    neighbors: ";
@@ -158,10 +158,10 @@ void HyPar::printSummary(std::ostream &out){
 
 void HyPar::printSummary(std::ofstream &out){
     out << "Nodes: " << nodes.size() << std::endl;
-    for (size_t i = 0; i < nodes.size(); i++){
+    for (size_t i = 0; i < nodes.size(); ++i){
         auto &node = nodes[i];
         out << "  node " << i << ": " << node.name << "-" << std::to_string(node.isRep) << "\n    resLoad: ";
-        for (int i = 0; i < NUM_RES; i++){
+        for (int i = 0; i < NUM_RES; ++i){
             out << node.resLoad[i] << " ";
         }
         out << "\n    nets: ";
@@ -175,7 +175,7 @@ void HyPar::printSummary(std::ofstream &out){
         out << "\n    fpga: " << node.fpga << std::endl;
     }
     out << "Nets: " << nets.size() << std::endl;
-    for (size_t i = 0; i < nets.size(); i++){
+    for (size_t i = 0; i < nets.size(); ++i){
         auto &net = nets[i];
         out << "  net " << i << ": \n    weight: ";
         out << net.weight << "\n    size: ";
@@ -187,10 +187,10 @@ void HyPar::printSummary(std::ofstream &out){
         out << std::endl;
     }
     out << "FPGAs: " << fpgas.size() << std::endl;
-    for (size_t i = 0; i < fpgas.size(); i++){
+    for (size_t i = 0; i < fpgas.size(); ++i){
         auto &fpga = fpgas[i];
         out << "  fpga " << i << ": " << fpga.name << "\n    maxConn: " << fpga.maxConn << "\n    resCap: ";
-        for (int i = 0; i < NUM_RES; i++){
+        for (int i = 0; i < NUM_RES; ++i){
             out << fpga.resCap[i] << " ";
         }
         out << "\n    neighbors: ";
@@ -370,7 +370,7 @@ bool ParFunc::_contract_eligible(int u, int v){
     return true;
 }
 
-bool ParFunc::_fpga_add_res(int f, int u){
+bool ParFunc::_fpga_add_try(int f, int u){
     int tmp[NUM_RES];
     std::copy(fpgas[f].resUsed, fpgas[f].resUsed + NUM_RES, tmp);
     for (int i = 0; i < NUM_RES; ++i){
@@ -380,17 +380,6 @@ bool ParFunc::_fpga_add_res(int f, int u){
             return false;
         }
     }
-    return true;
-}
-
-void ParFunc::_fpga_add_res_force(int f, int u){
-    for (int i = 0; i < NUM_RES; ++i){
-        fpgas[f].resUsed[i] += nodes[u].resLoad[i];
-    }
-}
-
-// @todo: now full update, maybe in the future we can incrementally update the connection
-bool ParFunc::_fpga_cal_conn(int f){
     std::unordered_map<int, bool> netCaled;
     int conn = 0;
     for (int node : fpgas[f].nodes){
@@ -400,7 +389,7 @@ bool ParFunc::_fpga_cal_conn(int f){
             }
             netCaled[net] = true;
             for (int v : nets[net].nodes){
-                if (nodes[v].fpga != f){
+                if (nodes[v].fpga != -1 &&nodes[v].fpga != f){ // @warning: check the correctness of this condition, or do it in the future?
                     conn += nets[net].weight;
                     if (conn > fpgas[f].maxConn){
                         return false;
@@ -414,7 +403,14 @@ bool ParFunc::_fpga_cal_conn(int f){
     return true;
 }
 
-void ParFunc::_fpga_cal_conn_force(int f){
+bool ParFunc::_fpga_add_force(int f, int u){
+    bool flag = true;
+    for (int i = 0; i < NUM_RES; ++i){
+        fpgas[f].resUsed[i] += nodes[u].resLoad[i];
+        if (fpgas[f].resUsed[i] > fpgas[f].resCap[i]){
+            flag = false;
+        }
+    }
     std::unordered_map<int, bool> netCaled;
     int conn = 0;
     for (int node : fpgas[f].nodes){
@@ -432,4 +428,93 @@ void ParFunc::_fpga_cal_conn_force(int f){
         }
     }
     fpgas[f].usedConn = conn;
+    return flag && usedConn <= maxConn;
+}
+
+bool ParFunc::_fpga_remove_force(int f, int u){
+    bool flag = true;
+    for (int i = 0; i < NUM_RES; ++i){
+        fpgas[f].resUsed[i] -= nodes[u].resLoad[i];
+        if (fpgas[f].resUsed[i] > fpgas[f].resCap[i]){
+            flag = false;
+        }
+    }
+    std::unordered_map<int, bool> netCaled;
+    int conn = 0;
+    for (int node : fpgas[f].nodes){
+        for (int net : nodes[node].nets){
+            if (netCaled[net]){
+                continue;
+            }
+            netCaled[net] = true;
+            for (int v : nets[net].nodes){
+                if (nodes[v].fpga != f){
+                    conn += nets[net].weight;
+                    break;
+                }
+            }
+        }
+    }
+    fpgas[f].usedConn = conn;
+    return flag && usedConn <= maxConn;
+}
+
+// due to the maxHop, we may not be able to implement the incremental update
+void ParFunc::_cal_refine_gain(int node, int f, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map){
+    unordered_set<int> toFpga;
+    for (int net : nodes[node].nets){
+        if (nets[net].size == 1){
+            continue;
+        }
+        for (int i = 0; i < nets[net].size; ++i){
+            int v = nets[net].nodes[i];
+            if (nodes[v].fpga != f){
+                toFpga.insert(nodes[v].fpga);
+            }
+        }
+        if (toFpga.size() == K - 1){
+            break;
+        }
+    }
+    for (int tf : toFpga){
+        int gain = 0;
+        bool flag = false;
+        for (int net : nodes[node].nets){
+            if (nets[net].size == 1){
+                continue;
+            }
+            if (nets[net].source == node){
+                for (size_t j = 0; j < nets[net].size; ++j){
+                    int v = nets[net].nodes[j];
+                    if (v == node){
+                        continue;
+                    }
+                    int vf = nodes[v].fpga;
+                    // if (fpgaMap[f][vf] == -1 && fpgaMap[tf][vf] != -1){
+                    //     gain += nets[net].weight * 1000; // @warning: add a large number to give a priority
+                    // } else if (fpgaMap[tf][vf] == -1){ // @warning: for now, skip this fpga
+                    //     flag = true;
+                    //     break;
+                    // } else {
+                    // // @warning: maybe we can simply set the hop of exceeded fpga to a large number
+                        gain += nets[net].weight * (fpgaMap[f][vf] - fpgaMap[tf][vf]);
+                    // }
+                }
+            }else{
+                int sf = nodes[nets[net].source].fpga;
+                // if (fpgaMap[sf][f] == -1 && fpgaMap[sf][tf] != -1){
+                //     gain += nets[net].weight * 1000; // @warning: add a large number to give a priority
+                // } else if (fpgaMap[sf][tf] == -1){ // @warning: for now, skip this fpga
+                //     flag = true;
+                //     break;
+                // } else {
+                // // @warning: maybe we can simply set the hop of exceeded fpga to a large number
+                    gain += nets[net].weight * (fpgaMap[sf][f] - fpgaMap[sf][tf]);
+                // }
+            }
+        }
+        if (!flag){
+            gain_map[{node, i}] = gain;
+        }
+    }
 }
