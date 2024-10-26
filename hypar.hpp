@@ -40,27 +40,18 @@ struct node {
 struct net {
     int weight{};
     int source{};
-    size_t size{};
+    int size{};
     std::vector<int> nodes{};
+    std::unordered_map<int, int> fpgas{}; // help to calculate the connectivity
+    // when kvp.second == 0, it should be erased
 };
 
 struct fpga {
     std::string name{};
-    int maxConn{}, usedConn{};
+    int maxConn{}, conn{};
     int resCap[NUM_RES]{}, resUsed[NUM_RES]{};
-    bool valid{true}; // default true, if the fpga is invalid, set it to false
-    std::vector<int>neighbors{};
-    std::vector<int>nodes{};
-
-    void query_validity(){
-        for (int i = 0; i < NUM_RES; ++i){
-            if (resUsed[i] > resCap[i]){
-                valid = false;
-                break;
-            }
-        }
-        valid = usedConn <= maxConn;
-    }
+    bool resValid{true}; // update after add or remove a node
+    std::vector<int> nodes{};
 };
 
 class HyPar {
@@ -94,25 +85,28 @@ private:
     std::unordered_set<int> curNodes, delNodes;
     std::unordered_map<std::pair<int, int>, float, pair_hash> edgeRatng;
     std::stack<std::pair<int, int>> contMeme;
-    std::unordered_map<int, int> netFp;
+    // std::unordered_map<int, int> netFp;
     int ceilRes[NUM_RES]{}, meanRes[NUM_RES]{};
+    std::vector<int> fpgaConn;
 
     // basic operations
     void _contract(int u, int v);   // contract v into u
     void _uncontract(int u, int v); // uncontract v from u
     float _heavy_edge_rating(int u, int v); // rate the pair (u, v) "heavy edge"
-    void _init_net_fp();
-    void _detect_para_singv_net(); // detect and remove parallel nets or single vertex nets
+    // void _init_net_fp();
+    // void _detect_para_singv_net(); // detect and remove parallel nets or single vertex nets
     void _init_ceil_mean_res();
     bool _contract_eligible(int u, int v); // check if u and v are eligible to be contracted
     bool _fpga_add_try(int f, int u);
     bool _fpga_add_force(int f, int u);
     bool _fpga_remove_force(int f, int u);
+    void _fpga_cal_conn();
     void _cal_refine_gain(int node, int f, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
 
     // test functions
     void _test_contract(std::ofstream &out);
     void _test_simple_process(std::ofstream &out);
+    void _test_k_local_search(std::ofstream &out);
 
     // Preprocessing
     // @todo: preprocessing function
@@ -120,7 +114,8 @@ private:
 
     // Coarsening
     void coarsen();
-    bool coarsen_naive();
+    bool _coarsen_naive();
+    void coarsen_naive();
     // @todo: detect&remove parallel nets or single vertex nets
 
     // Initial Partitioning

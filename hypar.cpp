@@ -76,8 +76,6 @@ void HyPar::readTopo(std::ifstream &topo){
     while (topo >> name1 >> name2){
         id1 = fpga2id[name1];
         id2 = fpga2id[name2];
-        fpgas[id1].neighbors.emplace_back(id2);
-        fpgas[id2].neighbors.emplace_back(id1);
         fpgaMap[id1][id2] = fpgaMap[id2][id1] = 1;
     }
     for (int k = 0; k < K; k++){
@@ -135,10 +133,6 @@ void HyPar::printSummary(std::ostream &out){
         for (int i = 0; i < NUM_RES; ++i){
             out << fpga.resCap[i] << " ";
         }
-        out << "\n    neighbors: ";
-        for (auto neighbor : fpga.neighbors){
-            out << neighbor << " ";
-        }
         out << "\n    nodes: ";
         for (auto node : fpga.nodes){
             out << node << " ";
@@ -193,10 +187,6 @@ void HyPar::printSummary(std::ofstream &out){
         for (int i = 0; i < NUM_RES; ++i){
             out << fpga.resCap[i] << " ";
         }
-        out << "\n    neighbors: ";
-        for (auto neighbor : fpga.neighbors){
-            out << neighbor << " ";
-        }
         out << "\n    nodes: ";
         for (auto node : fpga.nodes){
             out << node << " ";
@@ -241,7 +231,7 @@ void ParFunc::_contract(int u, int v){
             nets[net].source = u;
             nodes[u].nets.insert(net);
             nodes[u].isSou[net] = true;
-            netFp[net] += u * u - v * v; // incrementally update the fingerprint
+            // netFp[net] += u * u - v * v; // incrementally update the fingerprint
         }else{
             auto vit = std::find(nets[net].nodes.begin(), nets[net].nodes.end(), v);
             if (nodes[v].isSou[net]){
@@ -251,12 +241,12 @@ void ParFunc::_contract(int u, int v){
             if (!nodes[u].nets.count(net)){ // u is not in the net, relink (u, net)
                 *vit = u;
                 nodes[u].nets.insert(net);
-                netFp[net] += u * u - v * v; // incrementally update the fingerprint
+                // netFp[net] += u * u - v * v; // incrementally update the fingerprint
             }
             else{ // u is in the net, delete v
                 *vit = nets[net].nodes[--nets[net].size];
                 nets[net].nodes[nets[net].size] = v;
-                netFp[net] -= v * v; // incrementally update the fingerprint
+                // netFp[net] -= v * v; // incrementally update the fingerprint
             }
         }
     }
@@ -277,7 +267,7 @@ void ParFunc::_uncontract(int u, int v){
             nets[net].source = v;
             nodes[u].isSou[net] = false;
         }
-        if (nets[net].nodes.size() == nets[net].size || nets[net].nodes[nets[net].size] != v){ // v is relinked
+        if (static_cast<int>(nets[net].nodes.size()) == nets[net].size || nets[net].nodes[nets[net].size] != v){ // v is relinked
             auto uit = std::find(nets[net].nodes.begin(), nets[net].nodes.end(), u);
             *uit = v;
             nodes[u].nets.erase(net);
@@ -287,9 +277,6 @@ void ParFunc::_uncontract(int u, int v){
     }
 }
 
-// @warning: the following functions haven't been tested by Haichuan liu!
-// @todo: check the correctness of the following functions
-
 float ParFunc::_heavy_edge_rating(int u, int v){
     if (edgeRatng.count({u, v})){
         return edgeRatng[{u, v}];
@@ -298,7 +285,7 @@ float ParFunc::_heavy_edge_rating(int u, int v){
     std::set_intersection(nodes[u].nets.begin(), nodes[u].nets.end(), nodes[v].nets.begin(), nodes[v].nets.end(), std::inserter(secNets, secNets.begin()));
     float rating = 0;
     for (int net : secNets){
-        if (nets[net].size > static_cast<size_t>(parameter_l)){
+        if (nets[net].size > parameter_l){
             continue;
         }
         rating += (float) nets[net].weight / (nets[net].size - 1); // nets[net].size >= 2
@@ -306,48 +293,48 @@ float ParFunc::_heavy_edge_rating(int u, int v){
     return rating;
 }
 
-void ParFunc::_init_net_fp(){
-    for (size_t i = 0; i < nets.size(); ++i){
-        netFp[i] = 0;
-        for (int node : nets[i].nodes){
-            netFp[i] += node * node;
-        }
-    }
-}
+// void ParFunc::_init_net_fp(){
+//     for (size_t i = 0; i < nets.size(); ++i){
+//         netFp[i] = 0;
+//         for (int node : nets[i].nodes){
+//             netFp[i] += node * node;
+//         }
+//     }
+// }
 
-void ParFunc::_detect_para_singv_net(){
-    // for a deleted net, do we need to record it and plan to recover it?
-    // will deleting a net fail the uncontract operation?
-    // maybe we need to record the order of deletion and the level
-    for (size_t i = 0; i < nets.size(); ++i){
-        if (nets[i].size == 1){
-            netFp[i] = 0; // delete single vertex net
-        }
-    }
-    std::vector<int> indices(nets.size());
-    std::iota(indices.begin(), indices.end(), 0); 
-    std::sort(indices.begin(), indices.end(), [&](int i, int j){return netFp[i] < netFp[j];});
-    bool paraFlag = false;
-    int paraNet = -1, fp = -1;
-    for (int i : indices){
-        if (netFp[i] == 0){
-            continue;
-        }
-        if (!paraFlag){
-            fp = netFp[i];
-            paraNet = i;
-        } else if (netFp[i] == fp){
-            paraFlag = true;
-            nets[paraNet].weight += nets[i].weight; // merge parallel nets
-            netFp[i] = 0;
-        } else{
-            paraFlag = false;
-            fp = -1;
-            paraNet = -1;
-        }
-    }
-    // finally, do we really need this function?
-}
+// void ParFunc::_detect_para_singv_net(){
+//     // for a deleted net, do we need to record it and plan to recover it?
+//     // will deleting a net fail the uncontract operation?
+//     // maybe we need to record the order of deletion and the level
+//     for (size_t i = 0; i < nets.size(); ++i){
+//         if (nets[i].size == 1){
+//             netFp[i] = 0; // delete single vertex net
+//         }
+//     }
+//     std::vector<int> indices(nets.size());
+//     std::iota(indices.begin(), indices.end(), 0); 
+//     std::sort(indices.begin(), indices.end(), [&](int i, int j){return netFp[i] < netFp[j];});
+//     bool paraFlag = false;
+//     int paraNet = -1, fp = -1;
+//     for (int i : indices){
+//         if (netFp[i] == 0){
+//             continue;
+//         }
+//         if (!paraFlag){
+//             fp = netFp[i];
+//             paraNet = i;
+//         } else if (netFp[i] == fp){
+//             paraFlag = true;
+//             nets[paraNet].weight += nets[i].weight; // merge parallel nets
+//             netFp[i] = 0;
+//         } else{
+//             paraFlag = false;
+//             fp = -1;
+//             paraNet = -1;
+//         }
+//     }
+//     // finally, do we really need this function?
+// }
 
 void ParFunc::_init_ceil_mean_res(){
     memset(ceilRes, 0, sizeof(ceilRes));
@@ -370,6 +357,7 @@ bool ParFunc::_contract_eligible(int u, int v){
     return true;
 }
 
+// @note: the following 3 functions mean that we only check the resource constraint
 bool ParFunc::_fpga_add_try(int f, int u){
     int tmp[NUM_RES];
     std::copy(fpgas[f].resUsed, fpgas[f].resUsed + NUM_RES, tmp);
@@ -380,88 +368,49 @@ bool ParFunc::_fpga_add_try(int f, int u){
             return false;
         }
     }
-    std::unordered_map<int, bool> netCaled;
-    int conn = 0;
-    for (int node : fpgas[f].nodes){
-        for (int net : nodes[node].nets){
-            if (netCaled[net]){
-                continue;
-            }
-            netCaled[net] = true;
-            for (int v : nets[net].nodes){
-                if (nodes[v].fpga != -1 &&nodes[v].fpga != f){ // @warning: check the correctness of this condition, or do it in the future?
-                    conn += nets[net].weight;
-                    if (conn > fpgas[f].maxConn){
-                        return false;
-                    }
-                    break;
-                }
-            }
-        }
-    }
-    fpgas[f].usedConn = conn;
+    fpgas[f].resValid = true;
     return true;
 }
 
 bool ParFunc::_fpga_add_force(int f, int u){
-    bool flag = true;
+    fpgas[f].resValid = true;
     for (int i = 0; i < NUM_RES; ++i){
         fpgas[f].resUsed[i] += nodes[u].resLoad[i];
         if (fpgas[f].resUsed[i] > fpgas[f].resCap[i]){
-            flag = false;
+            fpgas[f].resValid = false;
         }
     }
-    std::unordered_map<int, bool> netCaled;
-    int conn = 0;
-    for (int node : fpgas[f].nodes){
-        for (int net : nodes[node].nets){
-            if (netCaled[net]){
-                continue;
-            }
-            netCaled[net] = true;
-            for (int v : nets[net].nodes){
-                if (nodes[v].fpga != f){
-                    conn += nets[net].weight;
-                    break;
-                }
-            }
-        }
-    }
-    fpgas[f].usedConn = conn;
-    return flag && usedConn <= maxConn;
+    return fpgas[f].resValid;
 }
 
 bool ParFunc::_fpga_remove_force(int f, int u){
-    bool flag = true;
+    fpgas[f].resValid = true;
     for (int i = 0; i < NUM_RES; ++i){
         fpgas[f].resUsed[i] -= nodes[u].resLoad[i];
         if (fpgas[f].resUsed[i] > fpgas[f].resCap[i]){
-            flag = false;
+            fpgas[f].resValid = false;
         }
     }
-    std::unordered_map<int, bool> netCaled;
-    int conn = 0;
-    for (int node : fpgas[f].nodes){
-        for (int net : nodes[node].nets){
-            if (netCaled[net]){
-                continue;
-            }
-            netCaled[net] = true;
-            for (int v : nets[net].nodes){
-                if (nodes[v].fpga != f){
-                    conn += nets[net].weight;
-                    break;
-                }
-            }
+    return fpgas[f].resValid;
+}
+
+// @note: is there incremental update for the connectivity?
+void ParFunc::_fpga_cal_conn(){
+    // fpgaConn.assign(K, 0); // only recalled once, when all 0, ensures the correctness
+    // std::unordered_map<std::pair<int, int>, bool, pair_hash> netVis; // unnecessary
+    for (const auto &net: nets){
+        if (net.size == 1){ // not a cut net
+            continue;
+        }
+        for (auto kvp : net.fpgas){ // a cut net
+            fpgas[kvp.first].conn += net.weight;
         }
     }
-    fpgas[f].usedConn = conn;
-    return flag && usedConn <= maxConn;
 }
 
 // due to the maxHop, we may not be able to implement the incremental update
 void ParFunc::_cal_refine_gain(int node, int f, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map){
-    unordered_set<int> toFpga;
+    std::unordered_set<int> toFpga;
     for (int net : nodes[node].nets){
         if (nets[net].size == 1){
             continue;
@@ -472,7 +421,7 @@ void ParFunc::_cal_refine_gain(int node, int f, std::unordered_map<std::pair<int
                 toFpga.insert(nodes[v].fpga);
             }
         }
-        if (toFpga.size() == K - 1){
+        if (static_cast<int>(toFpga.size()) == K - 1){
             break;
         }
     }
@@ -484,37 +433,23 @@ void ParFunc::_cal_refine_gain(int node, int f, std::unordered_map<std::pair<int
                 continue;
             }
             if (nets[net].source == node){
-                for (size_t j = 0; j < nets[net].size; ++j){
+                for (int j = 0; j < nets[net].size; ++j){
                     int v = nets[net].nodes[j];
                     if (v == node){
                         continue;
                     }
                     int vf = nodes[v].fpga;
-                    // if (fpgaMap[f][vf] == -1 && fpgaMap[tf][vf] != -1){
-                    //     gain += nets[net].weight * 1000; // @warning: add a large number to give a priority
-                    // } else if (fpgaMap[tf][vf] == -1){ // @warning: for now, skip this fpga
-                    //     flag = true;
-                    //     break;
-                    // } else {
-                    // // @warning: maybe we can simply set the hop of exceeded fpga to a large number
-                        gain += nets[net].weight * (fpgaMap[f][vf] - fpgaMap[tf][vf]);
-                    // }
+                    // @warning: maybe we can simply set the hop of exceeded fpga to a large number
+                    gain += nets[net].weight * (fpgaMap[f][vf] - fpgaMap[tf][vf]);
                 }
             }else{
                 int sf = nodes[nets[net].source].fpga;
-                // if (fpgaMap[sf][f] == -1 && fpgaMap[sf][tf] != -1){
-                //     gain += nets[net].weight * 1000; // @warning: add a large number to give a priority
-                // } else if (fpgaMap[sf][tf] == -1){ // @warning: for now, skip this fpga
-                //     flag = true;
-                //     break;
-                // } else {
-                // // @warning: maybe we can simply set the hop of exceeded fpga to a large number
-                    gain += nets[net].weight * (fpgaMap[sf][f] - fpgaMap[sf][tf]);
-                // }
+                // @warning: maybe we can simply set the hop of exceeded fpga to a large number
+                gain += nets[net].weight * (fpgaMap[sf][f] - fpgaMap[sf][tf]);
             }
         }
         if (!flag){
-            gain_map[{node, i}] = gain;
+            gain_map[{node, tf}] = gain;
         }
     }
 }

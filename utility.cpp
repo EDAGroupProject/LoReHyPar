@@ -11,13 +11,13 @@ void ParFunc::run(){
 void ParFunc::test(std::string testOutput){
     std::ofstream out(testOutput);
     // _test_contract(out);
-    _test_simple_process(out);
+    // _test_simple_process(out);
+    _test_k_local_search(out);
 }
 
 void ParFunc::evaluate(){
     for (auto &fpga : fpgas){
-        fpga.query_validity();
-        if (fpga.valid){
+        if (fpga.resValid && fpga.conn <= fpga.maxConn){
             std::cout << "Valid FPGA: " << fpga.name << std::endl;
         } else {
             std::cerr << "Invalid FPGA: " << fpga.name << std::endl;
@@ -26,8 +26,8 @@ void ParFunc::evaluate(){
                     std::cerr << "Resource " << i << " exceeds the capacity: " << fpga.resUsed[i] << " > " << fpga.resCap[i] << std::endl;
                 }
             }
-            if (fpga.usedConn > fpga.maxConn){
-                std::cerr << "Connection exceeds the capacity: " << fpga.usedConn << " > " << fpga.maxConn << std::endl;
+            if (fpga.conn > fpga.maxConn){
+                std::cerr << "Connection exceeds the capacity: " << fpga.conn << " > " << fpga.maxConn << std::endl;
             }
         }
     }
@@ -69,10 +69,25 @@ void ParFunc::_test_contract(std::ofstream &out){
 void ParFunc::_test_simple_process(std::ofstream &out){
     out << "Original: \n";
     printSummary(out);
-    coarsen();
+    coarsen_naive();
     out << "\nCoarsen: \n";
     printSummary(out);
-    initial_partition();
+    bfs_partition();
+    out << "\nInitial Partition: \n";
+    printSummary(out);
+    refine_naive();
+    out << "\nRefine: \n";
+    printSummary(out);
+    printOut(out);
+}
+
+void ParFunc::_test_k_local_search(std::ofstream &out){
+    out << "Original: \n";
+    printSummary(out);
+    coarsen_naive();
+    out << "\nCoarsen: \n";
+    printSummary(out);
+    bfs_partition();
     out << "\nInitial Partition: \n";
     printSummary(out);
     refine();

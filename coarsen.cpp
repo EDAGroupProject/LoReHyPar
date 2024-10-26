@@ -1,7 +1,7 @@
 #include <hypar.hpp>
 #include <algorithm>
 
-bool ParFunc::coarsen_naive(){
+bool ParFunc::_coarsen_naive(){
     bool contFlag = false;
     std::vector<int> randNodes(curNodes.begin(), curNodes.end());
     std::shuffle(randNodes.begin(), randNodes.end(), global_rng);
@@ -29,9 +29,9 @@ bool ParFunc::coarsen_naive(){
     return contFlag;                                                                                                                                                                                                                                            
 }
 
-void ParFunc::coarsen(){
-    _init_net_fp();
-    _init_ceil_mean_res();
+void ParFunc::coarsen_naive(){
+    // _init_net_fp();
+    // _init_ceil_mean_res();
     curNodes.clear();
     delNodes.clear();
     edgeRatng.clear();
@@ -39,8 +39,12 @@ void ParFunc::coarsen(){
         curNodes.insert(i);
     }
     while (curNodes.size() >= static_cast<size_t>(K * parameter_t)){
-        if (!coarsen_naive()){
+        if (!_coarsen_naive()){
             break;
         }
     }
+}
+
+void ParFunc::coarsen(){
+    coarsen_naive();
 }

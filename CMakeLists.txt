@@ -13,7 +13,7 @@ else()
     set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O2 -Wall -Wextra")
 endif()
 
-add_library(${PROJECT_NAME} STATIC hypar.cpp preprocess.cpp coarsen.cpp initialpar.cpp refine.cpp tests.cpp)
+add_library(${PROJECT_NAME} STATIC hypar.cpp preprocess.cpp coarsen.cpp initialpar.cpp refine.cpp utility.cpp)
 include_directories(PUBLIC "${PROJECT_SOURCE_DIR}")
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR})
 
