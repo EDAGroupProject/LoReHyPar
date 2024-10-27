@@ -26,7 +26,6 @@ int main(int argc, char **argv) {
         return 1;
     }
     ParFunc pf(inputDir, outputFile);
-    // pf.run();
-    pf.test();
+    pf.run();
     return 0;
 }

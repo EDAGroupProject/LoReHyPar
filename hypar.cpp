@@ -219,9 +219,9 @@ void HyPar::printOut(std::ofstream &out){
 }
 
 void ParFunc::_contract(int u, int v){
-    contMeme.push({u, v});
-    curNodes.erase(v);
-    delNodes.insert(v);
+    contract_memo.push({u, v});
+    existing_nodes.erase(v);
+    deleted_nodes.insert(v);
     for (int i = 0; i < NUM_RES; ++i){
         nodes[u].resLoad[i] += nodes[v].resLoad[i];
     }
@@ -253,10 +253,10 @@ void ParFunc::_contract(int u, int v){
 }
 
 void ParFunc::_uncontract(int u, int v){
-    assert(contMeme.top() == std::make_pair(u, v));
-    contMeme.pop();
-    curNodes.insert(v);
-    delNodes.erase(v);
+    assert(contract_memo.top() == std::make_pair(u, v));
+    contract_memo.pop();
+    existing_nodes.insert(v);
+    deleted_nodes.erase(v);
     for (int i = 0; i < NUM_RES; ++i){
         nodes[u].resLoad[i] -= nodes[v].resLoad[i];
     }
@@ -278,8 +278,8 @@ void ParFunc::_uncontract(int u, int v){
 }
 
 float ParFunc::_heavy_edge_rating(int u, int v){
-    if (edgeRatng.count({u, v})){
-        return edgeRatng[{u, v}];
+    if (edge_rating.count({u, v})){
+        return edge_rating[{u, v}];
     }
     std::set<int> secNets;
     std::set_intersection(nodes[u].nets.begin(), nodes[u].nets.end(), nodes[v].nets.begin(), nodes[v].nets.end(), std::inserter(secNets, secNets.begin()));
@@ -337,20 +337,20 @@ float ParFunc::_heavy_edge_rating(int u, int v){
 // }
 
 void ParFunc::_init_ceil_mean_res(){
-    memset(ceilRes, 0, sizeof(ceilRes));
-    memset(meanRes, 0, sizeof(meanRes));
+    memset(ceil_rescap, 0, sizeof(ceil_rescap));
+    memset(mean_rescap, 0, sizeof(mean_rescap));
     for (int i = 0; i < NUM_RES; ++i){
         for (auto &fpga : fpgas){
-            ceilRes[i] = std::max(ceilRes[i], static_cast<int>(std::ceil((float) fpga.resCap[i] / K * parameter_t)));
-            meanRes[i] += fpga.resCap[i];
+            ceil_rescap[i] = std::max(ceil_rescap[i], static_cast<int>(std::ceil((float) fpga.resCap[i] / K * parameter_t)));
+            mean_rescap[i] += fpga.resCap[i];
         }
-        meanRes[i] = static_cast<int>(std::ceil(meanRes[i] / K ));
+        mean_rescap[i] = static_cast<int>(std::ceil(mean_rescap[i] / K ));
     }
 }
 
 bool ParFunc::_contract_eligible(int u, int v){
     for (int i = 0; i < NUM_RES; ++i){
-        if (nodes[u].resLoad[i] + nodes[v].resLoad[i] > ceilRes[i]){
+        if (nodes[u].resLoad[i] + nodes[v].resLoad[i] > ceil_rescap[i]){
             return false;
         }
     }
@@ -452,4 +452,49 @@ void ParFunc::_cal_refine_gain(int node, int f, std::unordered_map<std::pair<int
             gain_map[{node, tf}] = gain;
         }
     }
+}
+
+void ParFunc::evaluate(){
+    for (auto &fpga : fpgas){
+        if (fpga.resValid && fpga.conn <= fpga.maxConn){
+            std::cout << "Valid FPGA: " << fpga.name << std::endl;
+        } else {
+            std::cerr << "Invalid FPGA: " << fpga.name << std::endl;
+            for (int i = 0; i < NUM_RES; ++i){
+                if (fpga.resUsed[i] > fpga.resCap[i]){
+                    std::cerr << "Resource " << i << " exceeds the capacity: " << fpga.resUsed[i] << " > " << fpga.resCap[i] << std::endl;
+                }
+            }
+            if (fpga.conn > fpga.maxConn){
+                std::cerr << "Connection exceeds the capacity: " << fpga.conn << " > " << fpga.maxConn << std::endl;
+            }
+        }
+    }
+    int totalHop = 0;
+    for (auto &net : nets){
+        int source = net.source;
+        int sf = nodes[source].fpga;
+        for (int i = 0; i < net.size; ++i){
+            int v = net.nodes[i];
+            if (v == source){
+                continue;
+            }
+            int vf = nodes[v].fpga;
+            if (fpgaMap[sf][vf] == -1){
+                std::cerr << "Errors happens between " << nodes[source].name << " and " << nodes[v].name <<"  No path between " << sf << " and " << vf << std::endl;
+            } else {
+                totalHop += net.weight * fpgaMap[sf][vf]; 
+            }   
+        }
+    }
+    std::cout << "Total Hop: " << totalHop << std::endl;
+}
+
+void ParFunc::run(){
+    preprocess();
+    coarsen();
+    initial_partition();
+    refine();
+    std::ofstream out(outputFile);
+    printOut(out);
 }

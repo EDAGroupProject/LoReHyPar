@@ -82,12 +82,13 @@ class ParFunc : public HyPar {
 private:
     int parameter_t = 2; // parameter in the calculation of ceilRes
     int parameter_l = 20; // parameter, do not evaluate nets with size more than parameter_l
-    std::unordered_set<int> curNodes, delNodes;
-    std::unordered_map<std::pair<int, int>, float, pair_hash> edgeRatng;
-    std::stack<std::pair<int, int>> contMeme;
+    std::unordered_set<int> existing_nodes, deleted_nodes;
+    std::unordered_map<int, int> node2community;
+    std::vector<std::unordered_set<int>> commuinities;
+    std::unordered_map<std::pair<int, int>, float, pair_hash> edge_rating;
+    std::stack<std::pair<int, int>> contract_memo;
     // std::unordered_map<int, int> netFp;
-    int ceilRes[NUM_RES]{}, meanRes[NUM_RES]{};
-    std::vector<int> fpgaConn;
+    int ceil_rescap[NUM_RES]{}, mean_rescap[NUM_RES]{};
 
     // basic operations
     void _contract(int u, int v);   // contract v into u
@@ -108,14 +109,22 @@ private:
     void _test_simple_process(std::ofstream &out);
     void _test_k_local_search(std::ofstream &out);
 
+
+public:
+    using HyPar::HyPar;
+    ParFunc(const HyPar &h) : HyPar(h) {}
+
     // Preprocessing
     // @todo: preprocessing function
-    void preprocessing();
+    void preprocess();
+    void pin_sparsify();
+    void community_detect();
 
     // Coarsening
     void coarsen();
     bool _coarsen_naive();
     void coarsen_naive();
+    bool coarsen_in_community(int community);
     // @todo: detect&remove parallel nets or single vertex nets
 
     // Initial Partitioning
@@ -147,10 +156,7 @@ private:
 
     // Incremental Update or Data Cache
     // @warning: this is a very important part, we should implement this in the future
-public:
-    using HyPar::HyPar;
-    ParFunc(const HyPar &h) : HyPar(h) {}
-    void test(std::string testOutput = "test.out");
+
     void run();
     void evaluate();
 };

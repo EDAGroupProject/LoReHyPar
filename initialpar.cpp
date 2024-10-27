@@ -2,7 +2,7 @@
 #include <algorithm>
 
 void ParFunc::bfs_partition(){
-    std::vector<int> nodeVec(curNodes.begin(), curNodes.end());
+    std::vector<int> nodeVec(existing_nodes.begin(), existing_nodes.end());
     std::shuffle(nodeVec.begin(), nodeVec.end(), global_rng);
     std::vector<int> fpgaVec(K);
     std::iota(fpgaVec.begin(), fpgaVec.end(), 0);

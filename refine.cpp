@@ -6,8 +6,8 @@
 
 void ParFunc::refine_naive(){
     // @warning: the following code is just uncontract all nodes
-    while (!contMeme.empty()){
-        auto [u, v] = contMeme.top();
+    while (!contract_memo.empty()){
+        auto [u, v] = contract_memo.top();
         _uncontract(u, v);
         int f = nodes[u].fpga;
         nodes[v].fpga = f;
@@ -20,7 +20,7 @@ void ParFunc::refine_naive(){
 // if we can take this into account, we will not need to calculate the gain each time
 // @todo: use different gain function to improve both hop and connectivity
 void ParFunc::k_way_localized_refine(){
-    auto [u, v] = contMeme.top();
+    auto [u, v] = contract_memo.top();
     _uncontract(u, v);
     int f = nodes[u].fpga;
     nodes[v].fpga = f;
@@ -154,7 +154,7 @@ void ParFunc::random_validity_refine(){
 }
 
 void ParFunc::refine(){
-    while (!contMeme.empty()){
+    while (!contract_memo.empty()){
         k_way_localized_refine();
     }
     // @note: how to ensure the validity of the solution?
