@@ -15,7 +15,7 @@
 
 #define NUM_RES 8
 
-std::mt19937 get_rng() {
+inline std::mt19937 get_rng() {
     std::random_device rd;
     auto time_seed = std::chrono::steady_clock::now().time_since_epoch().count();
     std::seed_seq seed_seq{rd(), static_cast<unsigned>(time_seed)};
@@ -66,6 +66,7 @@ private:
     std::unordered_map<std::string, int> node2id;
     std::unordered_map<std::string, int> fpga2id;
     std::vector<node> nodes;
+    int resLoadAll[NUM_RES]{};
     std::vector<net> nets;
     std::vector<fpga> fpgas;
     std::vector<std::vector<int>> fpgaMap;
@@ -75,11 +76,10 @@ private:
     int parameter_tau = 5; // parameter, in SCLa propagation, the tau of the neighbors get the same label
     std::unordered_set<int> existing_nodes, deleted_nodes;
     std::unordered_map<int, int> node2community;
-    std::vector<std::unordered_set<int>> commuinities;
-    std::unordered_map<std::pair<int, int>, float, pair_hash> edge_rating;
+    std::vector<std::unordered_set<int>> communities;
     std::stack<std::pair<int, int>> contract_memo;
     // std::unordered_map<int, int> netFp;
-    int ceil_rescap[NUM_RES]{}, mean_rescap[NUM_RES]{};
+    int ceil_rescap[NUM_RES]{};
 
     // basic operations
     void _contract(int u, int v);   // contract v into u
@@ -87,20 +87,18 @@ private:
     float _heavy_edge_rating(int u, int v); // rate the pair (u, v) "heavy edge"
     // void _init_net_fp();
     // void _detect_para_singv_net(); // detect and remove parallel nets or single vertex nets
-    void _init_ceil_mean_res();
+    void _init_ceil_res();
     bool _contract_eligible(int u, int v); // check if u and v are eligible to be contracted
     bool _fpga_add_try(int f, int u);
     bool _fpga_add_try_nochange(int f, int u);
     bool _fpga_add_force(int f, int u);
     bool _fpga_remove_force(int f, int u);
     void _fpga_cal_conn();
+    int _max_net_gain(int tf, int u);
+    int _FM_gain(int of, int tf, int u);
+    int _connectivity_gain(int of, int tf, int u);
+    int _gain_function(int of, int tf, int u, int sel = 0);
     void _cal_refine_gain(int node, int f, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
-
-    // test functions
-    void _test_contract(std::ofstream &out);
-    void _test_simple_process(std::ofstream &out);
-    void _test_k_local_search(std::ofstream &out);
-
 
 public:
     HyPar() = default;
@@ -132,6 +130,7 @@ public:
     void initial_partition();
     void bfs_partition();
     void SCLa_propagation();
+    void greedy_hypergraph_growth(int sel = 0);
     // @todo: other partitioning methods to enrich the portfolio
 
     // Map FGPA
@@ -160,8 +159,8 @@ public:
     // @warning: this is a very important part, we should implement this in the future
 
     void run();
-    void evaluate_summary();
-    std::pair<bool, int> evaluate();
+    void evaluate_summary(std::ostream &out);
+    void evaluate(bool &valid, int &hop);
 };
 
 #endif

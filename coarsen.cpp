@@ -1,30 +1,30 @@
 #include <hypar.hpp>
 #include <algorithm>
 
-bool HyPar::_coarsen_naive(){
+bool HyPar::_coarsen_naive() {
     bool contFlag = false;
     std::vector<int> randNodes(existing_nodes.begin(), existing_nodes.end());
     std::shuffle(randNodes.begin(), randNodes.end(), get_rng());
-    for (int u : randNodes){
-        if (deleted_nodes.count(u)){
+    for (int u : randNodes) {
+        if (deleted_nodes.count(u)) {
             continue;
         }
         float maxRating = 0.0;
         int v = -1;
-        for (int net : nodes[u].nets){
-            for (int i = 0; i < nets[net].size; ++i){
+        for (int net : nodes[u].nets) {
+            for (int i = 0; i < nets[net].size; ++i) {
                 int w = nets[net].nodes[i];
-                if (w == u || deleted_nodes.count(w) || !_contract_eligible(u, w)){
+                if (w == u || deleted_nodes.count(w) || !_contract_eligible(u, w)) {
                     continue;
                 }
                 float rating = _heavy_edge_rating(u, w);
-                if (rating > maxRating){
+                if (rating > maxRating) {
                     maxRating = rating;
                     v = w;
                 }
             }
         }
-        if (v != -1){
+        if (v != -1) {
             _contract(u, v);
             contFlag = true;
         }
@@ -32,56 +32,59 @@ bool HyPar::_coarsen_naive(){
     return contFlag;                                                                                                                                                                                                                                            
 }
 
-void HyPar::coarsen_naive(){
-    while (existing_nodes.size() >= static_cast<size_t>(K * parameter_t)){
-        if (!_coarsen_naive()){
+void HyPar::coarsen_naive() {
+    _init_ceil_res();
+    while (existing_nodes.size() >= static_cast<size_t>(K * parameter_t)) {
+        if (!_coarsen_naive()) {
             break;
         }
     }
 }
 
-bool HyPar::coarsen_in_community(int community){
+bool HyPar::coarsen_in_community(int community) {
     bool contFlag = false;
-    std::vector<int> randNodes(commuinities[community].begin(), commuinities[community].end());
+    std::vector<int> randNodes(communities[community].begin(), communities[community].end());
     std::shuffle(randNodes.begin(), randNodes.end(), get_rng());
-    for (int u : randNodes){
-        if (deleted_nodes.count(u)){
+    for (int u : randNodes) {
+        if (deleted_nodes.count(u)) {
             continue;
         }
         float maxRating = 0;
         int v = -1;
-        for (int net : nodes[u].nets){
-            for (int i = 0; i < nets[net].size; ++i){
+        for (int net : nodes[u].nets) {
+            for (int i = 0; i < nets[net].size; ++i) {
                 int w = nets[net].nodes[i];
-                if (w == u || node2community[w] != node2community[u] || deleted_nodes.count(w) || !_contract_eligible(u, w)){
+                if (w == u || node2community[w] != node2community[u] || deleted_nodes.count(w) || !_contract_eligible(u, w)) {
                     continue;
                 }
                 float rating = _heavy_edge_rating(u, w);
-                if (rating > maxRating){
+                if (rating > maxRating) {
                     maxRating = rating;
                     v = w;
                 }
             }
         }
-        if (v != -1){
+        if (v != -1) {
             _contract(u, v);
-            commuinities[community].erase(v); // additionally, we need to update the community
+            communities[community].erase(v); // additionally, we need to update the community
             contFlag = true;
         }
     }
     return contFlag; 
 }
 
-void HyPar::coarsen(){
-    while (existing_nodes.size() >= static_cast<size_t>(K * parameter_t)){
+void HyPar::coarsen() {
+    _init_ceil_res();
+    while (existing_nodes.size() >= static_cast<size_t>(K * parameter_t)) {
         bool contFlag = false;
-        for (size_t i = 0; i < commuinities.size(); ++i){
-            if (coarsen_in_community(i)){
+        for (size_t i = 0; i < communities.size(); ++i) {
+            if (communities[i].size() > 1 && coarsen_in_community(i)) {
                 contFlag = true;
             }
         }
-        if (!contFlag){
+        if (!contFlag) {
             break;
         }
     }
+    std::cout << existing_nodes.size() << std::endl;
 }

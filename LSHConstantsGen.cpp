@@ -1,8 +1,16 @@
 #include <fstream>
 #include <vector>
 #include <random>
+#include <chrono>
 #include <cmath>
 #include <iostream>
+
+inline std::mt19937 get_rng() {
+    std::random_device rd;
+    auto time_seed = std::chrono::steady_clock::now().time_since_epoch().count();
+    std::seed_seq seed_seq{rd(), static_cast<unsigned>(time_seed)};
+    return std::mt19937(seed_seq);
+}
 
 bool isPrime(int num) {
     if (num < 2) return false;
@@ -13,7 +21,7 @@ bool isPrime(int num) {
 }
 
 int generateRandomPrime(int max_p) {
-    std::mt19937 rng(std::random_device{}());
+    std::mt19937 rng(get_rng());
     std::uniform_int_distribution<int> dist(2, max_p);
 
     int candidate;
@@ -31,8 +39,7 @@ int main() {
     std::vector<int> b_values;
     std::vector<int> p_values;
 
-    std::random_device rd;
-    std::mt19937 rng(rd());
+    std::mt19937 rng(get_rng());
     for (size_t i = 0; i < num_hashes; ++i) {
         int p = generateRandomPrime(max_p);
         p_values.push_back(p);
@@ -44,7 +51,7 @@ int main() {
         b_values.push_back(dist_b(rng));
     }
 
-    std::ofstream outfile("LSHConstants.hpp");
+    std::ofstream outfile("../LSHConstants.hpp");
     outfile << "#ifndef _LSH_CONSTANTS_HPP\n";
     outfile << "#define _LSH_CONSTANTS_HPP\n\n";
     outfile << "const int NUM_HASHES = " << num_hashes << ";\n";
@@ -66,6 +73,5 @@ int main() {
     outfile << "#endif // LSH_CONSTANTS_HPP\n";
     outfile.close();
 
-    std::cout << "LSH constants generated and saved to LSHConstants.hpp\n";
     return 0;
 }

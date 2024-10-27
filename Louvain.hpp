@@ -10,30 +10,29 @@
 class Louvain {
     friend class HyPar;
 
-    std::vector<std::unordered_map<int, float, pair_hash>> A;
+    std::vector<std::unordered_map<int, float>> A;
     std::vector<int> community;
     std::vector<std::vector<int>> communityNodes;
-    std::vector<float> k_in, k_tot;
+    std::vector<float> k_tot;
     std::unordered_set<int> nodes;
     int n;
     float m;
 
     bool phaseOne();
     void phaseTwo();
-    void updateCommunity(int u, int c);
     float calculateDeltaModularity(int u, int c);
 
 public:
     Louvain(int _n);
     void addEdge(int u, int v, float w);
     void run();
+    void print();
 };
 
 Louvain::Louvain(int _n) : n(_n), m(0.0) { 
     A.resize(n);
     community.resize(n);
     communityNodes.resize(n);
-    k_in.resize(n, 0.0);
     k_tot.resize(n, 0.0);
     for (int i = 0; i < n; ++i) {
         community[i] = i;
@@ -48,12 +47,11 @@ void Louvain::addEdge(int u, int v, float w) {
     A[v][u] = w;
     k_tot[u] += w;
     k_tot[v] += w;
-    m += w / 2.0;
+    m += w;
 }
 
 bool Louvain::phaseOne() {
     bool improvement = false;
-    k_in.assign(n, 0.0);
     std::unordered_map<int, bool> is_community;
     for (int u : nodes) {
         if (is_community[u]) { // wont merge a community to another community
@@ -72,7 +70,9 @@ bool Louvain::phaseOne() {
             }
         }
         if (bestCommunity != community[u]) {
-            updateCommunity(u, bestCommunity);
+            k_tot[bestCommunity] += k_tot[u];
+            community[u] = bestCommunity;
+            communityNodes[bestCommunity].insert(communityNodes[bestCommunity].end(), communityNodes[u].begin(), communityNodes[u].end()); 
             is_community[bestCommunity] = true;
             improvement = true;
         }
@@ -80,27 +80,31 @@ bool Louvain::phaseOne() {
     return improvement;
 }
 
-void Louvain::phaseTwo(){
-    for (int u : nodes) {
-        if (community[u] == u) { // initialize the community
-            A[u].clear();
-            k_in[u] = 0.0;
-            k_tot[u] = 0.0;
-        }
-    }
+void Louvain::phaseTwo() {
     for (auto it = nodes.begin(); it != nodes.end(); ) {
         int u = *it;
-        if (community[u] == u) {
-            ++it;
-            continue;
-        }
-        for (const auto& [v, w] : A[u]) {
-            if (community[v] != community[u]) { // calulated once for u, the second time for v
-                A[community[u]][community[v]] += w;
-                k_tot[community[u]] += w;
+        if (community[u] == u) { // original community node
+            for (auto ait = A[u].begin(); ait != A[u].end(); ) {
+                int v = ait->first, w = ait->second;
+                if (community[v] != v) { // not a community node
+                    ait = A[u].erase(ait);
+                    if (community[v] != u) { // not a internal node, relink the edge
+                        A[v][community[v]] += w;
+                    }
+                } else {
+                    ++ait;
+                }
             }
+            ++it;
+        } else{
+            for (const auto& [v, w] : A[u]) {
+                if (community[v] != community[u]) { // calulated once for u, the second time for v
+                    A[community[u]][community[v]] += w;
+                    // k_tot[community[u]] += w; // unnecessary, calculated in phaseOne
+                }
+            }
+            it = nodes.erase(it);
         }
-        it = nodes.erase(it);
     }
 }
 
@@ -117,18 +121,17 @@ float Louvain::calculateDeltaModularity(int u, int c) {
             k_i_in += w;
         }
     }
-    return k_i_in / (2.0 * m) - k_tot[u] * k_in[c] / (2.0 * m * m);
+    return k_i_in / m - k_tot[u] * k_tot[c] / (2.0 * m * m);
 }
 
-void Louvain::updateCommunity(int u, int c) {
-    for (const auto& [v, w] : A[u]) {
-        if (community[v] == c) {
-            k_in[c] += w;
+void Louvain::print() {
+    for (int c : nodes) {
+        std::cout << "Community " << c << ": ";
+        for (int u : communityNodes[c]) {
+            std::cout << u << " ";
         }
+        std::cout << std::endl;
     }
-    k_tot[c] += k_tot[u];
-    community[u] = c;
-    communityNodes[c].insert(communityNodes[c].end(), communityNodes[u].begin(), communityNodes[u].end()); // concatenate
 }
 
 #endif // LOUVAIN_HPP

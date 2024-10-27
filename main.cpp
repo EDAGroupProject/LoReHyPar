@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
         std::cerr << "Usage: " << argv[0] << " -s <input directory> -t <output file>" << std::endl;
         return 1;
     }
-    ParFunc pf(inputDir, outputFile);
-    pf.run();
+    HyPar hp(inputDir, outputFile);
+    hp.run();
     return 0;
 }
