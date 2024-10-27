@@ -4,7 +4,7 @@
 #include <climits>
 #include <cassert>
 
-void ParFunc::refine_naive(){
+void HyPar::refine_naive(){
     // @warning: the following code is just uncontract all nodes
     while (!contract_memo.empty()){
         auto [u, v] = contract_memo.top();
@@ -19,7 +19,7 @@ void ParFunc::refine_naive(){
 // so we need to calculate the gain of the move each time we call this function
 // if we can take this into account, we will not need to calculate the gain each time
 // @todo: use different gain function to improve both hop and connectivity
-void ParFunc::k_way_localized_refine(){
+void HyPar::k_way_localized_refine(){
     auto [u, v] = contract_memo.top();
     _uncontract(u, v);
     int f = nodes[u].fpga;
@@ -113,19 +113,21 @@ void ParFunc::k_way_localized_refine(){
     }
 }
 
-void ParFunc::random_validity_refine(){
+void HyPar::random_validity_refine(){
     std::vector<int> fpgaVec(K);
     std::iota(fpgaVec.begin(), fpgaVec.end(), 0);
-    std::shuffle(fpgaVec.begin(), fpgaVec.end(), global_rng);
+    std::shuffle(fpgaVec.begin(), fpgaVec.end(), get_rng());
     std::unordered_map<std::pair<int,int>, int, pair_hash> gain_map;
     for (int f : fpgaVec){
         if (!fpgas[f].resValid){
             std::vector<int> nodeVec(fpgas[f].nodes);
-            std::shuffle(nodeVec.begin(), nodeVec.end(), global_rng);
+            std::shuffle(nodeVec.begin(), nodeVec.end(), get_rng());
             for (int node : nodeVec){
-                int ff = std::uniform_int_distribution<int>(0, K - 1)(global_rng);
+                std::mt19937 rng = get_rng();
+                std::uniform_int_distribution<int> dist(0, K - 1);
+                int ff = dist(rng);
                 while (ff == f){
-                    ff = std::uniform_int_distribution<int>(0, K - 1)(global_rng);
+                    ff = dist(rng);
                 }
                 fpgas[f].nodes.erase(std::remove(fpgas[f].nodes.begin(), fpgas[f].nodes.end(), node), fpgas[f].nodes.end());
                 fpgas[ff].nodes.push_back(node);
@@ -153,7 +155,7 @@ void ParFunc::random_validity_refine(){
     }
 }
 
-void ParFunc::refine(){
+void HyPar::refine(){
     while (!contract_memo.empty()){
         k_way_localized_refine();
     }

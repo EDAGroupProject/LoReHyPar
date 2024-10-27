@@ -1,10 +1,10 @@
 #include <hypar.hpp>
 #include <algorithm>
 
-bool ParFunc::_coarsen_naive(){
+bool HyPar::_coarsen_naive(){
     bool contFlag = false;
     std::vector<int> randNodes(existing_nodes.begin(), existing_nodes.end());
-    std::shuffle(randNodes.begin(), randNodes.end(), global_rng);
+    std::shuffle(randNodes.begin(), randNodes.end(), get_rng());
     for (int u : randNodes){
         if (deleted_nodes.count(u)){
             continue;
@@ -32,7 +32,7 @@ bool ParFunc::_coarsen_naive(){
     return contFlag;                                                                                                                                                                                                                                            
 }
 
-void ParFunc::coarsen_naive(){
+void HyPar::coarsen_naive(){
     while (existing_nodes.size() >= static_cast<size_t>(K * parameter_t)){
         if (!_coarsen_naive()){
             break;
@@ -40,10 +40,10 @@ void ParFunc::coarsen_naive(){
     }
 }
 
-bool ParFunc::coarsen_in_community(int community){
+bool HyPar::coarsen_in_community(int community){
     bool contFlag = false;
     std::vector<int> randNodes(commuinities[community].begin(), commuinities[community].end());
-    std::shuffle(randNodes.begin(), randNodes.end(), global_rng);
+    std::shuffle(randNodes.begin(), randNodes.end(), get_rng());
     for (int u : randNodes){
         if (deleted_nodes.count(u)){
             continue;
@@ -72,7 +72,7 @@ bool ParFunc::coarsen_in_community(int community){
     return contFlag; 
 }
 
-void ParFunc::coarsen(){
+void HyPar::coarsen(){
     while (existing_nodes.size() >= static_cast<size_t>(K * parameter_t)){
         bool contFlag = false;
         for (size_t i = 0; i < commuinities.size(); ++i){

@@ -5,10 +5,6 @@
 #include <iomanip>
 #include <sstream>
 
-
-std::random_device rd;
-std::mt19937 global_rng(rd());
-
 HyPar::HyPar(std::string _inputDir, std::string _outputFile) : inputDir(_inputDir), outputFile(_outputFile) {
     std::ifstream info(inputDir + "/design.info"), are(inputDir + "/design.are"), net(inputDir + "/design.net"), topo(inputDir + "/design.topo");
     assert(info && are && net && topo);
@@ -90,7 +86,7 @@ void HyPar::readTopo(std::ifstream &topo){
     for (int i = 0; i < K; ++i){
             for (int j = 0; j < K; j++){
                 if(fpgaMap[i][j] > maxHop){
-                    fpgaMap[i][j] = 64; // @warning: a large number to indicate no connection
+                    fpgaMap[i][j] = maxHop * K; // @warning: a large number to indicate no connection
                 }
             }
         }
@@ -218,7 +214,7 @@ void HyPar::printOut(std::ofstream &out){
     }
 }
 
-void ParFunc::_contract(int u, int v){
+void HyPar::_contract(int u, int v){
     contract_memo.push({u, v});
     existing_nodes.erase(v);
     deleted_nodes.insert(v);
@@ -252,7 +248,7 @@ void ParFunc::_contract(int u, int v){
     }
 }
 
-void ParFunc::_uncontract(int u, int v){
+void HyPar::_uncontract(int u, int v){
     assert(contract_memo.top() == std::make_pair(u, v));
     contract_memo.pop();
     existing_nodes.insert(v);
@@ -277,7 +273,7 @@ void ParFunc::_uncontract(int u, int v){
     }
 }
 
-float ParFunc::_heavy_edge_rating(int u, int v){
+float HyPar::_heavy_edge_rating(int u, int v){
     if (edge_rating.count({u, v})){
         return edge_rating[{u, v}];
     }
@@ -293,7 +289,7 @@ float ParFunc::_heavy_edge_rating(int u, int v){
     return rating;
 }
 
-// void ParFunc::_init_net_fp(){
+// void HyPar::_init_net_fp(){
 //     for (size_t i = 0; i < nets.size(); ++i){
 //         netFp[i] = 0;
 //         for (int node : nets[i].nodes){
@@ -302,7 +298,7 @@ float ParFunc::_heavy_edge_rating(int u, int v){
 //     }
 // }
 
-// void ParFunc::_detect_para_singv_net(){
+// void HyPar::_detect_para_singv_net(){
 //     // for a deleted net, do we need to record it and plan to recover it?
 //     // will deleting a net fail the uncontract operation?
 //     // maybe we need to record the order of deletion and the level
@@ -336,7 +332,7 @@ float ParFunc::_heavy_edge_rating(int u, int v){
 //     // finally, do we really need this function?
 // }
 
-void ParFunc::_init_ceil_mean_res(){
+void HyPar::_init_ceil_mean_res(){
     memset(ceil_rescap, 0, sizeof(ceil_rescap));
     memset(mean_rescap, 0, sizeof(mean_rescap));
     for (int i = 0; i < NUM_RES; ++i){
@@ -348,7 +344,7 @@ void ParFunc::_init_ceil_mean_res(){
     }
 }
 
-bool ParFunc::_contract_eligible(int u, int v){
+bool HyPar::_contract_eligible(int u, int v){
     for (int i = 0; i < NUM_RES; ++i){
         if (nodes[u].resLoad[i] + nodes[v].resLoad[i] > ceil_rescap[i]){
             return false;
@@ -357,8 +353,8 @@ bool ParFunc::_contract_eligible(int u, int v){
     return true;
 }
 
-// @note: the following 3 functions mean that we only check the resource constraint
-bool ParFunc::_fpga_add_try(int f, int u){
+// @note: the following 4 functions mean that we only check the resource constraint
+bool HyPar::_fpga_add_try(int f, int u){
     int tmp[NUM_RES];
     std::copy(fpgas[f].resUsed, fpgas[f].resUsed + NUM_RES, tmp);
     for (int i = 0; i < NUM_RES; ++i){
@@ -372,7 +368,16 @@ bool ParFunc::_fpga_add_try(int f, int u){
     return true;
 }
 
-bool ParFunc::_fpga_add_force(int f, int u){
+bool HyPar::_fpga_add_try_nochange(int f, int u){
+    for (int i = 0; i < NUM_RES; ++i){
+        if (fpgas[f].resUsed[i] + nodes[u].resLoad[i] > fpgas[f].resCap[i]){
+            return false;
+        }
+    }
+    return true;
+}
+
+bool HyPar::_fpga_add_force(int f, int u){
     fpgas[f].resValid = true;
     for (int i = 0; i < NUM_RES; ++i){
         fpgas[f].resUsed[i] += nodes[u].resLoad[i];
@@ -383,7 +388,7 @@ bool ParFunc::_fpga_add_force(int f, int u){
     return fpgas[f].resValid;
 }
 
-bool ParFunc::_fpga_remove_force(int f, int u){
+bool HyPar::_fpga_remove_force(int f, int u){
     fpgas[f].resValid = true;
     for (int i = 0; i < NUM_RES; ++i){
         fpgas[f].resUsed[i] -= nodes[u].resLoad[i];
@@ -395,7 +400,7 @@ bool ParFunc::_fpga_remove_force(int f, int u){
 }
 
 // @note: is there incremental update for the connectivity?
-void ParFunc::_fpga_cal_conn(){
+void HyPar::_fpga_cal_conn(){
     // fpgaConn.assign(K, 0); // only recalled once, when all 0, ensures the correctness
     // std::unordered_map<std::pair<int, int>, bool, pair_hash> netVis; // unnecessary
     for (const auto &net: nets){
@@ -409,7 +414,7 @@ void ParFunc::_fpga_cal_conn(){
 }
 
 // due to the maxHop, we may not be able to implement the incremental update
-void ParFunc::_cal_refine_gain(int node, int f, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map){
+void HyPar::_cal_refine_gain(int node, int f, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map){
     std::unordered_set<int> toFpga;
     for (int net : nodes[node].nets){
         if (nets[net].size == 1){
@@ -454,7 +459,7 @@ void ParFunc::_cal_refine_gain(int node, int f, std::unordered_map<std::pair<int
     }
 }
 
-void ParFunc::evaluate(){
+void HyPar::evaluate_summary(){
     for (auto &fpga : fpgas){
         if (fpga.resValid && fpga.conn <= fpga.maxConn){
             std::cout << "Valid FPGA: " << fpga.name << std::endl;
@@ -480,7 +485,7 @@ void ParFunc::evaluate(){
                 continue;
             }
             int vf = nodes[v].fpga;
-            if (fpgaMap[sf][vf] == -1){
+            if (fpgaMap[sf][vf] > maxHop){
                 std::cerr << "Errors happens between " << nodes[source].name << " and " << nodes[v].name <<"  No path between " << sf << " and " << vf << std::endl;
             } else {
                 totalHop += net.weight * fpgaMap[sf][vf]; 
@@ -490,7 +495,33 @@ void ParFunc::evaluate(){
     std::cout << "Total Hop: " << totalHop << std::endl;
 }
 
-void ParFunc::run(){
+std::pair<bool, int> HyPar::evaluate(){
+    bool flag = true;
+    for (auto &fpga : fpgas){
+        if (!fpga.resValid || fpga.conn > fpga.maxConn){
+            flag = false;
+        }
+    }
+    int totalHop = 0;
+    for (auto &net : nets){
+        int source = net.source;
+        int sf = nodes[source].fpga;
+        for (int i = 0; i < net.size; ++i){
+            int v = net.nodes[i];
+            if (v == source){
+                continue;
+            }
+            int vf = nodes[v].fpga;
+            if (fpgaMap[sf][vf] > maxHop){
+                flag = false;
+            }
+            totalHop += net.weight * fpgaMap[sf][vf];   
+        }
+    }
+    return {flag, totalHop};
+}
+
+void HyPar::run(){
     preprocess();
     coarsen();
     initial_partition();

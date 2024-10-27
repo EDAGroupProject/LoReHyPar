@@ -8,7 +8,7 @@
 #include <cmath>
 
 class Louvain {
-    friend class ParFunc;
+    friend class HyPar;
 
     std::vector<std::unordered_map<int, float, pair_hash>> A;
     std::vector<int> community;

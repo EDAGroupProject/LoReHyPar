@@ -3,9 +3,10 @@
 
 #include <fstream>
 #include <iostream>
-#include <queue>
 #include <random>
+#include <chrono>
 #include <set>
+#include <queue>
 #include <stack>
 #include <string>
 #include <unordered_map>
@@ -14,8 +15,12 @@
 
 #define NUM_RES 8
 
-extern std::random_device rd;
-extern std::mt19937 global_rng;
+std::mt19937 get_rng() {
+    std::random_device rd;
+    auto time_seed = std::chrono::steady_clock::now().time_since_epoch().count();
+    std::seed_seq seed_seq{rd(), static_cast<unsigned>(time_seed)};
+    return std::mt19937(seed_seq);
+}
 
 struct pair_hash final {
     template <class T1, class T2>
@@ -55,7 +60,7 @@ struct fpga {
 };
 
 class HyPar {
-protected:
+private:
     int maxHop, K; // number of partitions
     std::string inputDir, outputFile;
     std::unordered_map<std::string, int> node2id;
@@ -65,23 +70,9 @@ protected:
     std::vector<fpga> fpgas;
     std::vector<std::vector<int>> fpgaMap;
 
-public:
-    HyPar(std::string _inputDir, std::string _outputFile);
-
-    void readInfo(std::ifstream &info);
-    void readAre(std::ifstream &are);
-    void readNet(std::ifstream &net);
-    void readTopo(std::ifstream &topo);
-
-    void printSummary(std::ostream &out);
-    void printSummary(std::ofstream &out);
-    void printOut(std::ofstream &out);
-};
-
-class ParFunc : public HyPar {
-private:
     int parameter_t = 2; // parameter in the calculation of ceilRes
     int parameter_l = 20; // parameter, do not evaluate nets with size more than parameter_l
+    int parameter_tau = 5; // parameter, in SCLa propagation, the tau of the neighbors get the same label
     std::unordered_set<int> existing_nodes, deleted_nodes;
     std::unordered_map<int, int> node2community;
     std::vector<std::unordered_set<int>> commuinities;
@@ -99,6 +90,7 @@ private:
     void _init_ceil_mean_res();
     bool _contract_eligible(int u, int v); // check if u and v are eligible to be contracted
     bool _fpga_add_try(int f, int u);
+    bool _fpga_add_try_nochange(int f, int u);
     bool _fpga_add_force(int f, int u);
     bool _fpga_remove_force(int f, int u);
     void _fpga_cal_conn();
@@ -111,8 +103,17 @@ private:
 
 
 public:
-    using HyPar::HyPar;
-    ParFunc(const HyPar &h) : HyPar(h) {}
+    HyPar() = default;
+    HyPar(std::string _inputDir, std::string _outputFile);
+
+    void readInfo(std::ifstream &info);
+    void readAre(std::ifstream &are);
+    void readNet(std::ifstream &net);
+    void readTopo(std::ifstream &topo);
+
+    void printSummary(std::ostream &out);
+    void printSummary(std::ofstream &out);
+    void printOut(std::ofstream &out);
 
     // Preprocessing
     // @todo: preprocessing function
@@ -130,8 +131,9 @@ public:
     // Initial Partitioning
     void initial_partition();
     void bfs_partition();
+    void SCLa_propagation();
     // @todo: other partitioning methods to enrich the portfolio
-    
+
     // Map FGPA
     // @todo: mapping function
     void map_fpga();
@@ -158,7 +160,8 @@ public:
     // @warning: this is a very important part, we should implement this in the future
 
     void run();
-    void evaluate();
+    void evaluate_summary();
+    std::pair<bool, int> evaluate();
 };
 
 #endif

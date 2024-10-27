@@ -13,7 +13,7 @@ bool vector_equal(const std::vector<int> slice, const std::vector<int> &vec1, co
     return true;
 }
 
-void ParFunc::pin_sparsify(){
+void HyPar::pin_sparsify(){
     std::vector<int> nodeFp(nodes.size(),0);
     for (size_t i = 0; i < nodes.size(); ++i){
         for (int net : nodes[i].nets){
@@ -31,11 +31,12 @@ void ParFunc::pin_sparsify(){
     std::unordered_set<int> active_nodes(existing_nodes);
     for (int hash_sel = std::max(1, static_cast<int>(std::ceil(std::log(hash_num) / std::log(10)))); hash_sel <= hash_num; ++hash_sel){
         std::vector<int> slice(hash_sel);
+        std::mt19937 rng = get_rng();
         std::uniform_int_distribution<int> dis(0, hash_num - 1);
         for (int i = 0; i < hash_sel; ++i){
-            int rd = dis(global_rng);
+            int rd = dis(rng);
             while (std::find(slice.begin(), slice.end(), rd) != slice.end()){
-                rd = dis(global_rng);
+                rd = dis(rng);
             }
             slice[i] = rd;
         }
@@ -87,7 +88,7 @@ void ParFunc::pin_sparsify(){
     }
 }
 
-void ParFunc::community_detect(){
+void HyPar::community_detect(){
     Louvain lv(nets.size() + existing_nodes.size());
     std::vector<int> louvain2node;
     float edge_density = float(nets.size()) / nodes.size();
@@ -120,7 +121,7 @@ void ParFunc::community_detect(){
     }
 }
 
-void ParFunc::preprocess(){
+void HyPar::preprocess(){
     existing_nodes.clear();
     deleted_nodes.clear();
     for(size_t i = 0; i < nodes.size(); ++i){
