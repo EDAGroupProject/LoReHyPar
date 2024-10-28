@@ -113,21 +113,21 @@ void HyPar::printSummary(std::ostream &out) {
     //     out << "\n    fpga: " << node.fpga << std::endl;
     // }
     out << "Nets: " << nets.size() << std::endl;
-    for (size_t i = 0; i < nets.size(); ++i) {
-        auto &net = nets[i];
-        out << "  net " << i << ": \n    weight: ";
-        out << net.weight << "\n    size: ";
-        out << net.size << "\n    source: ";
-        out << net.source << "\n    nodes: ";
-        for (int node : net.nodes) {
-            out << node << " ";
-        }
-        out << "\n    existing nodes: ";
-        for (int j = 0; j < net.size; ++j) {
-            out << net.nodes[j] << " ";
-        }
-        out << std::endl;
-    }
+    // for (size_t i = 0; i < nets.size(); ++i) {
+    //     auto &net = nets[i];
+    //     out << "  net " << i << ": \n    weight: ";
+    //     out << net.weight << "\n    size: ";
+    //     out << net.size << "\n    source: ";
+    //     out << net.source << "\n    nodes: ";
+    //     for (int node : net.nodes) {
+    //         out << node << " ";
+    //     }
+    //     out << "\n    existing nodes: ";
+    //     for (int j = 0; j < net.size; ++j) {
+    //         out << net.nodes[j] << " ";
+    //     }
+    //     out << std::endl;
+    // }
     out << "FPGAs: " << fpgas.size() << std::endl;
     for (size_t i = 0; i < fpgas.size(); ++i) {
         auto &fpga = fpgas[i];
@@ -472,17 +472,25 @@ int HyPar::_gain_function(int of, int tf, int u, int sel) {
     }
 }
 
+void HyPar::_cal_inpar_gain(int node, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map){
+    for (int tf = 0; tf < K; ++tf) {
+        if (tf == f) {
+            continue;
+        }
+        gain_map[{node, tf}] = _gain_function(f, tf, node, sel);
+    }
+}
+
 // due to the maxHop, we may not be able to implement the incremental update
 void HyPar::_cal_refine_gain(int node, int f, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map) {
     std::unordered_set<int> toFpga;
     for (int net : nodes[node].nets) {
-        if (nets[net].size == 1) {
-            continue;
-        }
-        for (int i = 0; i < nets[net].size; ++i) {
-            int v = nets[net].nodes[i];
-            if (nodes[v].fpga != f) {
-                toFpga.insert(nodes[v].fpga);
+        for (auto [ff, cnt] : nets[net].fpgas) {
+            if (cnt == 0) {
+                continue;
+            }
+            if (ff != f && fpgaMap[f][ff] <= maxHop) {
+                toFpga.insert(ff);
             }
         }
         if (static_cast<int>(toFpga.size()) == K - 1) {
@@ -491,7 +499,6 @@ void HyPar::_cal_refine_gain(int node, int f, std::unordered_map<std::pair<int, 
     }
     for (int tf : toFpga) {
         int gain = 0;
-        bool flag = false;
         for (int net : nodes[node].nets) {
             if (nets[net].size == 1) {
                 continue;
@@ -506,19 +513,18 @@ void HyPar::_cal_refine_gain(int node, int f, std::unordered_map<std::pair<int, 
                     // @warning: maybe we can simply set the hop of exceeded fpga to a large number
                     gain += nets[net].weight * (fpgaMap[f][vf] - fpgaMap[tf][vf]);
                 }
-            }else{
+            } else {
                 int sf = nodes[nets[net].source].fpga;
                 // @warning: maybe we can simply set the hop of exceeded fpga to a large number
                 gain += nets[net].weight * (fpgaMap[sf][f] - fpgaMap[sf][tf]);
             }
         }
-        if (!flag) {
-            gain_map[{node, tf}] = gain;
-        }
+        gain_map[{node, tf}] = gain;
     }
 }
 
 void HyPar::evaluate_summary(std::ostream &out) {
+    _fpga_cal_conn();
     for (auto &fpga : fpgas) {
         if (fpga.resValid && fpga.conn <= fpga.maxConn) {
             out << "Valid FPGA: " << fpga.name << std::endl;

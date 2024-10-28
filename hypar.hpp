@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <cassert>
 
 #define NUM_RES 8
 
@@ -98,6 +99,7 @@ private:
     int _FM_gain(int of, int tf, int u);
     int _connectivity_gain(int of, int tf, int u);
     int _gain_function(int of, int tf, int u, int sel = 0);
+    void _cal_inpar_gain(int node, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
     void _cal_refine_gain(int node, int f, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
 
 public:

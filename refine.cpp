@@ -29,7 +29,7 @@ void HyPar::k_way_localized_refine() {
         ++nets[net].fpgas[f];
     }
     std::vector<std::pair<int,int>> move_seq; // (node, from_fpga)
-    std::vector<int> node_state(nodes.size(), 0); // 0: inactive, 1: active, 2: locked
+    std::unordered_map<int, int> node_state; // 0: inactive, 1: active, 2: locked
     std::unordered_map<std::pair<int,int>, int, pair_hash> gain_map; // (node, fpga) -> gain
     std::unordered_set<int> active_nodes;
     node_state[u] = 1;
@@ -41,7 +41,7 @@ void HyPar::k_way_localized_refine() {
     int gain_sum = 0, cnt = 0, min_pass = std::log(nodes.size()) / std::log(2);
     int max_sum = -INT_MAX, max_pass = 0;
     while (cnt < min_pass || gain_sum > 0) {
-        int max_gain = -INT_MAX, max_n, max_tf;
+        int max_gain = -INT_MAX, max_n = -1, max_tf;
         for (int node : active_nodes) {
             for (int f = 0; f < K; ++f) {
                 if (fpgas[f].resValid && gain_map.count({node, f}) && gain_map[{node, f}] > max_gain) {
@@ -50,6 +50,9 @@ void HyPar::k_way_localized_refine() {
                     max_tf = f;
                 }
             }
+        }
+        if (max_n == -1) {
+            break;
         }
         if (max_gain <= 0) {
             ++cnt;
@@ -68,23 +71,13 @@ void HyPar::k_way_localized_refine() {
         nodes[max_n].fpga = max_tf;
         fpgas[max_tf].nodes.push_back(max_n);
         _fpga_add_force(max_tf, max_n);
-        for (int net : nodes[max_n].nets) {
-            --nets[net].fpgas[of];
-            ++nets[net].fpgas[max_tf];
-            if (nets[net].fpgas[of] == 0) { // the net is no longer connected to f
-                nets[net].fpgas.erase(of); // erase the 0 entry
-                if (nets[net].fpgas.size() > 1) { // not only the max_tf is connected, means that before it's not single fpga connected
-                    fpgas[of].conn -= nets[net].weight;
-                }
-            }
-            if (nets[net].fpgas[max_tf] == 1 && nets[net].fpgas.size() > 1) { // the net is connected to f for the first time
-                fpgas[max_tf].conn += nets[net].weight;
-            }
-        }
         node_state[max_n] = 2;
         active_nodes.erase(max_n);
         for (int net : nodes[max_n].nets) {
-            for (int node : nets[net].nodes) {
+            --nets[net].fpgas[of];
+            ++nets[net].fpgas[max_tf];
+            for (int j = 0; j < nets[net].size; ++j) {
+                int node = nets[net].nodes[j];
                 if (node_state[node] == 0) {
                     node_state[node] = 1;
                     active_nodes.insert(node);
@@ -159,6 +152,7 @@ void HyPar::refine() {
     while (!contract_memo.empty()) {
         k_way_localized_refine();
     }
+    _fpga_cal_conn();
     // @note: how to ensure the validity of the solution?
     // Since the organizer declares that getting a valid solution is easy, we just randomly assign nodes to fpgas
     random_validity_refine();

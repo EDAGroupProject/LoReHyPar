@@ -86,5 +86,4 @@ void HyPar::coarsen() {
             break;
         }
     }
-    std::cout << existing_nodes.size() << std::endl;
 }
