@@ -183,58 +183,76 @@ void HyPar::force_connectivity_refine() {
     }
 }
 
-void HyPar::random_validity_refine() {
-    std::vector<int> fpgaVec(K);
-    std::iota(fpgaVec.begin(), fpgaVec.end(), 0);
-    std::shuffle(fpgaVec.begin(), fpgaVec.end(), get_rng());
-    std::unordered_map<std::pair<int,int>, int, pair_hash> gain_map;
-    for (int f : fpgaVec) {
-        if (!fpgas[f].resValid) {
-            std::vector<int> nodeVec(fpgas[f].nodes);
-            std::shuffle(nodeVec.begin(), nodeVec.end(), get_rng());
-            for (int node : nodeVec) {
-                std::mt19937 rng = get_rng();
-                std::uniform_int_distribution<int> dist(0, K - 1);
-                int ff = dist(rng);
-                while (ff == f) {
-                    ff = dist(rng);
-                }
-                fpgas[f].nodes.erase(std::remove(fpgas[f].nodes.begin(), fpgas[f].nodes.end(), node), fpgas[f].nodes.end());
-                fpgas[ff].nodes.push_back(node);
-                nodes[node].fpga = ff;
-                _fpga_remove_force(f, node);
-                _fpga_add_force(ff, node);
-                for (int net : nodes[node].nets) {
-                    --nets[net].fpgas[f];
-                    ++nets[net].fpgas[ff];
-                    if (nets[net].fpgas[f] == 0) {
-                        nets[net].fpgas.erase(f);
-                        if (nets[net].fpgas.size() > 1) {
-                            fpgas[f].conn -= nets[net].weight;
-                        }
-                    }
-                    if (nets[net].fpgas[ff] == 1 && nets[net].fpgas.size() > 1) {
-                        fpgas[ff].conn += nets[net].weight;
-                    }
-                }
-                if (fpgas[f].resValid) {
-                    break;
-                }
+bool HyPar::force_validity_refine(int sel) {
+    std::unordered_set<int> invalid_fpgas;
+    std::unordered_map<int, bool> node_locked;
+    std::vector<double> fpgaRes(K, 0);
+    for (int i = 0; i < K; ++i) {
+        if (!fpgas[i].resValid) {
+            invalid_fpgas.insert(i);
+            for (int j = 0; j < NUM_RES; ++j) {
+                fpgaRes[i] += double(fpgas[i].resUsed[j]) / fpgas[i].resCap[j]; 
             }
         }
     }
+    if (invalid_fpgas.empty()) {
+        return true;
+    }
+    std::vector<int> invalid_fpgaVec(invalid_fpgas.begin(), invalid_fpgas.end());
+    std::sort(invalid_fpgaVec.begin(), invalid_fpgaVec.end(), [&](int a, int b) {
+        return fpgaRes[a] > fpgaRes[b];
+    });
+    for (int f : invalid_fpgaVec) {
+        int ceil = fpgas[f].nodes.size() / K;
+        std::mt19937 rng = get_rng();
+        for (int i = 0; i < ceil; ++i) {
+            std::uniform_int_distribution<int> dis(0, static_cast<int>(fpgas[f].nodes.size()) - 1);
+            int u = fpgas[f].nodes[dis(rng)];
+            if (node_locked[u]) {
+                --i;
+                continue;
+            }
+            node_locked[u] = true;
+            int max_gain = -INT_MAX, max_tf;
+            for (int tf = 0; tf < K; ++tf) {
+                if (tf == f || !fpgas[tf].resValid || !_fpga_add_try_nochange(tf, u)) {
+                    continue;
+                }
+                int gain = _gain_function(f, tf, u, sel);
+                if (gain > max_gain) {
+                    max_gain = gain;
+                    max_tf = tf;
+                }
+            }
+            fpgas[f].nodes.erase(std::remove(fpgas[f].nodes.begin(), fpgas[f].nodes.end(), u), fpgas[f].nodes.end());
+            _fpga_remove_force(f, u);
+            nodes[u].fpga = max_tf;
+            fpgas[max_tf].nodes.push_back(u);
+            _fpga_add_force(max_tf, u);
+            for (int net : nodes[u].nets) {
+                ++nets[net].fpgas[max_tf];
+                --nets[net].fpgas[f];
+            }
+        }
+    }
+    return false;
 }
 
 void HyPar::refine() {
     int sel[2] = {1, 2}, cnt = 0;
     while (!contract_memo.empty()) {
         k_way_localized_refine(sel[(cnt++) % 2]);
-        _fpga_cal_conn();
-        // if (!_fpga_chk_conn()) {
+        // if (_fpga_cal_conn(), !_fpga_chk_conn()) {
         //     force_connectivity_refine();
         // }
     }
+    if (!_fpga_chk_res()) {
+        for (int i = 0; i < K; ++i) {
+            if(force_validity_refine(2)) {
+                break;
+            }
+        }
+    }
     // @note: how to ensure the validity of the solution?
     // Since the organizer declares that getting a valid solution is easy, we just randomly assign nodes to fpgas
-    // random_validity_refine();
 }

@@ -222,6 +222,7 @@ void HyPar::printOut(std::ofstream &out) {
 
 void HyPar::_contract(int u, int v) {
     contract_memo.push({u, v});
+    nodes[u].size += nodes[v].size;
     existing_nodes.erase(v);
     deleted_nodes.insert(v);
     for (int i = 0; i < NUM_RES; ++i) {
@@ -257,6 +258,7 @@ void HyPar::_contract(int u, int v) {
 void HyPar::_uncontract(int u, int v) {
     assert(contract_memo.top() == std::make_pair(u, v));
     contract_memo.pop();
+    nodes[u].size -= nodes[v].size;
     existing_nodes.insert(v);
     deleted_nodes.erase(v);
     for (int i = 0; i < NUM_RES; ++i) {
@@ -401,6 +403,9 @@ bool HyPar::_fpga_remove_force(int f, int u) {
 void HyPar::_fpga_cal_conn() {
     // fpgaConn.assign(K, 0); // only recalled once, when all 0, ensures the correctness
     // std::unordered_map<std::pair<int, int>, bool, pair_hash> netVis; // unnecessary
+    for (int i = 0; i < K; ++i) {
+        fpgas[i].conn = 0;
+    }
     for (const auto &net: nets) {
         if (net.size == 1) { // not a cut net
             continue;
@@ -418,6 +423,15 @@ bool HyPar::_fpga_chk_conn() {
         if (fpgas[i].conn > fpgas[i].maxConn) {
             return false;
         }
+    }
+    return true;
+}
+
+bool HyPar::_fpga_chk_res() {
+    for (int i = 0; i < K; ++i) {
+        if (!fpgas[i].resValid) {
+            return false;
+        } 
     }
     return true;
 }
@@ -482,12 +496,12 @@ int HyPar::_hop_gain(int of, int tf, int u){
                 }
                 int vf = nodes[v].fpga;
                 // @warning: maybe we can simply set the hop of exceeded fpga to a large number
-                gain += nets[net].weight * (fpgaMap[of][vf] - fpgaMap[tf][vf]);
+                gain += nodes[v].size * nets[net].weight * (fpgaMap[of][vf] - fpgaMap[tf][vf]);
             }
         } else {
             int sf = nodes[nets[net].source].fpga;
             // @warning: maybe we can simply set the hop of exceeded fpga to a large number
-            gain += nets[net].weight * (fpgaMap[sf][of] - fpgaMap[sf][tf]);
+            gain += nodes[u].size * nets[net].weight * (fpgaMap[sf][of] - fpgaMap[sf][tf]);
         }
     }
     return gain;
@@ -508,19 +522,19 @@ int HyPar::_gain_function(int of, int tf, int u, int sel){
     }
 }
 
-void HyPar::_cal_inpar_gain(int node, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map){
+void HyPar::_cal_inpar_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map){
     for (int tf = 0; tf < K; ++tf) {
         if (tf == f) {
             continue;
         }
-        gain_map[{node, tf}] = _gain_function(f, tf, node, sel);
+        gain_map[{u, tf}] = _gain_function(f, tf, u, sel);
     }
 }
 
 // due to the maxHop, we may not be able to implement the incremental update
-void HyPar::_cal_refine_gain(int node, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map) {
+void HyPar::_cal_refine_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map) {
     std::unordered_map<int, bool> toFpga;
-    for (int net : nodes[node].nets) {
+    for (int net : nodes[u].nets) {
         for (auto [ff, cnt] : nets[net].fpgas) {
             // if (cnt == 0) { // in theory, 0 will have been killed
             //     continue;
@@ -535,9 +549,9 @@ void HyPar::_cal_refine_gain(int node, int f, int sel, std::unordered_map<std::p
     }
     for (int tf = 0; tf < K; ++tf) {
         if (toFpga[tf]) {
-            gain_map[{node, tf}] = _gain_function(f, tf, node, sel);
+            gain_map[{u, tf}] = _gain_function(f, tf, u, sel);
         } else {
-            gain_map.erase({node, tf});
+            gain_map.erase({u, tf});
         }
     }
 }
@@ -572,7 +586,7 @@ void HyPar::evaluate_summary(std::ostream &out) {
             if (fpgaMap[sf][vf] > maxHop) {
                 out << "Errors happens between " << nodes[source].name << " and " << nodes[v].name <<"  No path between " << sf << " and " << vf << std::endl;
             } else {
-                totalHop += net.weight * fpgaMap[sf][vf]; 
+                totalHop += nodes[v].size * net.weight * fpgaMap[sf][vf]; 
             }   
         }
     }
@@ -599,7 +613,7 @@ void HyPar::evaluate(bool &valid, int &hop) {
             if (fpgaMap[sf][vf] > maxHop) {
                 valid = false;
             }
-            hop += net.weight * fpgaMap[sf][vf];   
+            hop += nodes[v].size * net.weight * fpgaMap[sf][vf];
         }
     }
 }

@@ -38,6 +38,7 @@ struct node {
     int isRep{}; // is replicated node, dont know how to handle this
     int fpga{-1}; // easy to signal the partition
     int resLoad[NUM_RES]{};
+    int size{1};
     std::vector<int> reps{};
     std::set<int> nets{};
     std::unordered_map<int, bool> isSou{};
@@ -96,13 +97,14 @@ private:
     bool _fpga_remove_force(int f, int u);
     void _fpga_cal_conn();
     bool _fpga_chk_conn();
+    bool _fpga_chk_res();
     int _max_net_gain(int tf, int u);
     int _FM_gain(int of, int tf, int u);
     int _hop_gain(int of, int tf, int u);
     int _connectivity_gain(int of, int tf, int u);
     int _gain_function(int of, int tf, int u, int sel = 0);
-    void _cal_inpar_gain(int node, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
-    void _cal_refine_gain(int node, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
+    void _cal_inpar_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
+    void _cal_refine_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
 
 public:
     HyPar() = default;
@@ -148,7 +150,7 @@ public:
     void refine_naive();
     void k_way_localized_refine(int sel = 0);
     void force_connectivity_refine();
-    void random_validity_refine();
+    bool force_validity_refine(int sel = 0);
         
     // Replication
     // @todo: the implementation of the replication
