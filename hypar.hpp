@@ -95,16 +95,20 @@ private:
     bool _fpga_add_force(int f, int u);
     bool _fpga_remove_force(int f, int u);
     void _fpga_cal_conn();
+    bool _fpga_chk_conn();
     int _max_net_gain(int tf, int u);
     int _FM_gain(int of, int tf, int u);
+    int _hop_gain(int of, int tf, int u);
     int _connectivity_gain(int of, int tf, int u);
     int _gain_function(int of, int tf, int u, int sel = 0);
     void _cal_inpar_gain(int node, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
-    void _cal_refine_gain(int node, int f, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
+    void _cal_refine_gain(int node, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
 
 public:
     HyPar() = default;
     HyPar(std::string _inputDir, std::string _outputFile);
+    HyPar(const HyPar &other) = default;
+    ~HyPar() = default;
 
     void readInfo(std::ifstream &info);
     void readAre(std::ifstream &are);
@@ -142,7 +146,8 @@ public:
     // Refinement
     void refine();
     void refine_naive();
-    void k_way_localized_refine();
+    void k_way_localized_refine(int sel = 0);
+    void force_connectivity_refine();
     void random_validity_refine();
         
     // Replication

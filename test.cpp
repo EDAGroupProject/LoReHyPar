@@ -11,8 +11,8 @@ int main() {
     std::cout << "Coarsen done" << std::endl;
     hp.initial_partition();
     std::cout << "Initial partition done" << std::endl;
-    // hp.refine();
-    // std::cout << "Refine done" << std::endl;
-    // hp.evaluate_summary(std::cout);
+    hp.refine();
+    std::cout << "Refine done" << std::endl;
+    hp.evaluate_summary(std::cout);
     return 0;
 }

@@ -55,13 +55,11 @@ void HyPar::bfs_partition() {
 }
 
 void HyPar::SCLa_propagation() {
-    std::cout << "SCLa propagation" << std::endl;
     std::unordered_set<int> unlabeled_nodes(existing_nodes);
     std::vector<int> nodeVec(existing_nodes.begin(), existing_nodes.end());
     std::mt19937 rng = get_rng();
     std::shuffle(nodeVec.begin(), nodeVec.end(), rng);
-    std::cout << "Shuffle done" << std::endl;
-    int step = nodeVec.size() / K;
+    int step = (nodeVec.size() - 1) / K;
     for (int i = 0; i < K; ++i) {
         int u = nodeVec[i * step];
         unlabeled_nodes.erase(u);
@@ -91,38 +89,43 @@ void HyPar::SCLa_propagation() {
             }
         }
     }
-    for (int u : unlabeled_nodes) {
-        std::unordered_map<int, int> gain_map;
-        for (int net : nodes[u].nets) {
-            for (auto [f, cnt] : nets[net].fpgas) {
-                if (cnt == 0) {
-                    continue;
+    while (!unlabeled_nodes.empty()) {
+        for (auto it = unlabeled_nodes.begin(); it != unlabeled_nodes.end();) {
+            int u = *it;
+            std::unordered_map<int, int> gain_map;
+            for (int net : nodes[u].nets) {
+                for (auto [f, cnt] : nets[net].fpgas) {
+                    if (cnt == 0) {
+                        continue;
+                    }
+                    gain_map[f] += cnt * nets[net].weight; // @warning: the gain is arbitrary
                 }
-                gain_map[f] += cnt * nets[net].weight; // @warning: the gain is arbitrary
             }
-        }
-        if (gain_map.empty()) {
-            continue;
-        }
-        int f_max = -1, gain_max = 0;
-        for (auto [f, g] : gain_map) {
-            if (g > gain_max && _fpga_add_try_nochange(f, u)) {
-                f_max = f;
-                gain_max = g;
+            if (gain_map.empty()) {
+                ++it;
+                continue;
             }
-        }
-        if (f_max == -1) {
-            std::uniform_int_distribution<int> dis(0, gain_map.size() - 1);
-            bool steps = dis(rng);
-            auto it = gain_map.begin();
-            advance(it, steps);
-            f_max = it->first;
-        }
-        nodes[u].fpga = f_max;
-        fpgas[f_max].nodes.push_back(u);
-        _fpga_add_force(f_max, u);
-        for (int net : nodes[u].nets) {
-            ++nets[net].fpgas[f_max];
+            int f_max = -1, gain_max = 0;
+            for (auto [f, g] : gain_map) {
+                if (g > gain_max && _fpga_add_try_nochange(f, u)) {
+                    f_max = f;
+                    gain_max = g;
+                }
+            }
+            if (f_max == -1) {
+                std::uniform_int_distribution<int> dis(0, gain_map.size() - 1);
+                bool steps = dis(rng);
+                auto it = gain_map.begin();
+                advance(it, steps);
+                f_max = it->first;
+            }
+            nodes[u].fpga = f_max;
+            fpgas[f_max].nodes.push_back(u);
+            _fpga_add_force(f_max, u);
+            it = unlabeled_nodes.erase(it);
+            for (int net : nodes[u].nets) {
+                ++nets[net].fpgas[f_max];
+            }
         }
     }
 }
@@ -215,62 +218,57 @@ void HyPar::greedy_hypergraph_growth(int sel) { // I use this based on the forme
 // @todo: other partitioning methods to enrich the portfolio
 void HyPar::initial_partition() {
     bool bestvalid = false, valid;
-    int minHop = INT_MAX, hop, sel;
+    int minHop = INT_MAX, hop;
     HyPar best, tmp;
     std::uniform_int_distribution<int> dis(0, 2);
     std::mt19937 rng = get_rng();
-    int par = 0;
+    int sel[3] = {0, 1, 2};
     for (int i = 0; i < 20; ++i){
-        std::cout << "Initial Partitioning: " << i << std::endl;
         tmp = *this;
         tmp.bfs_partition();
-        std::cout << "BFS Partitioning Done" << std::endl;
         tmp._fpga_cal_conn();
         tmp.evaluate(valid, hop);
         if ((!bestvalid || valid) && hop < minHop) {
-            par = 0;
             best = tmp;
             bestvalid = valid;
             minHop = hop;
         }
-        sel = dis(rng);
-        tmp.greedy_hypergraph_growth(sel);
-        std::cout << "Greedy Hypergraph Growth Done" << std::endl;
-        tmp._fpga_cal_conn();
-        tmp.evaluate(valid, hop);
-        if ((!bestvalid || valid) && hop < minHop) {
-            par = 1;
-            best = std::move(tmp);
-            bestvalid = valid;
-            minHop = hop;
+
+        std::shuffle(sel, sel + 3, rng);
+        for (int i = 0; i < 3; ++i) {
+            tmp.greedy_hypergraph_growth(sel[i]);
+            tmp._fpga_cal_conn();
+            tmp.evaluate(valid, hop);
+            if ((!bestvalid || valid) && hop < minHop) {
+                best = tmp;
+                bestvalid = valid;
+                minHop = hop;
+            }
         }
+        
         tmp = *this;
         tmp.SCLa_propagation();
-        std::cout << "SCLa Propagation Done" << std::endl;
         tmp._fpga_cal_conn();
         tmp.evaluate(valid, hop);
         if ((!bestvalid || valid) && hop < minHop) {
-            par = 2;
             best = tmp;
             bestvalid = valid;
             minHop = hop;
         }
-        sel = dis(rng);
-        tmp.greedy_hypergraph_growth(sel);
-        std::cout << "Greedy Hypergraph Growth Done" << std::endl;
-        tmp._fpga_cal_conn();
-        tmp.evaluate(valid, hop);
-        if ((!bestvalid || valid) && hop < minHop) {
-            par = 3;
-            best = std::move(tmp);
-            bestvalid = valid;
-            minHop = hop;
+
+        std::shuffle(sel, sel + 3, rng);
+        for (int i = 0; i < 3; ++i) {
+            tmp.greedy_hypergraph_growth(sel[i]);
+            tmp._fpga_cal_conn();
+            tmp.evaluate(valid, hop);
+            if ((!bestvalid || valid) && hop < minHop) {
+                best = tmp;
+                bestvalid = valid;
+                minHop = hop;
+            }
         }
     }
     *this = std::move(best);
-    std::cout << "Best Initial Partitioning: " << std::endl;
-    std::cout << "Partitioning Method: " << par << std::endl;
-    evaluate_summary(std::cout);
 }
 
 // how to meet the connectivity constraint?
