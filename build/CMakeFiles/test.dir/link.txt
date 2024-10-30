@@ -1,0 +1,1 @@
+/usr/bin/g++  -O0 -Wall -Wextra -ggdb3 -DDEBUG CMakeFiles/test.dir/test.cpp.o -o test  libLoReHyPar.a 

@@ -5,7 +5,7 @@
 #include <iomanip>
 #include <sstream>
 
-HyPar::HyPar(std::string _inputDir, std::string _outputFile) : inputDir(_inputDir), outputFile(_outputFile) {
+HyPar::HyPar(std::string _inputDir, std::string _outputFile) : inputDir(_inputDir), outputFile(_outputFile),uf() {
     std::ifstream info(inputDir + "/design.info"), are(inputDir + "/design.are"), net(inputDir + "/design.net"), topo(inputDir + "/design.topo");
     assert(info && are && net && topo);
     readInfo(info);
@@ -36,6 +36,7 @@ void HyPar::readAre(std::ifstream &are) {
             resLoadAll[i] += nodes.back().resLoad[i];
         }
     }
+    uf = UnionFind(nodes.size());
 }
 
 void HyPar::readNet(std::ifstream &net) {
@@ -52,14 +53,62 @@ void HyPar::readNet(std::ifstream &net) {
         nodes[id].nets.insert(nets.size() - 1);
         nodes[id].isSou[nets.size() - 1] = true;
         iss >> nets.back().weight;
+
+        int firstNode = id;
+
+        // 处理超边中的其他节点
         while (iss >> name) {
             id = node2id[name];
             nets.back().nodes.emplace_back(id);
             nodes[id].nets.insert(nets.size() - 1);
+
+            // 合并节点
+            uf.unite(firstNode, id);
         }
         nets.back().size = nets.back().nodes.size();
     }
 }
+
+
+void HyPar::debugUnconnectedGraph(std::ostream &out) {
+    out << "Nodes:" << std::endl;
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        out << "Node " << i << ": ";
+        for (const auto &net : nodes[i].nets) {
+            out << net << " ";
+        }
+        out << std::endl;
+    }
+
+    out << "Nets:" << std::endl;
+    for (size_t i = 0; i < nets.size(); ++i) {
+        out << "Net " << i << ": ";
+        for (const auto &node : nets[i].nodes) {
+            out << node << " ";
+        }
+        out << std::endl;
+    }
+
+    out << "Union-Find (Connected Components):" << std::endl;
+    std::unordered_map<int, std::vector<int>> components;
+
+    // Group nodes by their root in the union-find structure
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        int root = uf.find(i); // Find the root of each node
+        components[root].push_back(i); // Group nodes by root
+    }
+
+    // Print each component
+    for (const auto &comp : components) {
+        out << "Component with root " << comp.first << ": ";
+        for (const auto &node : comp.second) {
+            out << node << " ";
+        }
+        out << std::endl;
+    }
+}
+
+
 
 void HyPar::readTopo(std::ifstream &topo) {
     topo >> maxHop;

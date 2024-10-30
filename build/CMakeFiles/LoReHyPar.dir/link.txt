@@ -1,0 +1,2 @@
+/usr/bin/ar qc libLoReHyPar.a CMakeFiles/LoReHyPar.dir/hypar.cpp.o CMakeFiles/LoReHyPar.dir/preprocess.cpp.o CMakeFiles/LoReHyPar.dir/coarsen.cpp.o CMakeFiles/LoReHyPar.dir/initialpar.cpp.o CMakeFiles/LoReHyPar.dir/refine.cpp.o
+/usr/bin/ranlib libLoReHyPar.a

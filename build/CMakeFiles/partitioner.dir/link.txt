@@ -1,0 +1,1 @@
+/usr/bin/g++  -O0 -Wall -Wextra -ggdb3 -DDEBUG CMakeFiles/partitioner.dir/main.cpp.o -o partitioner  libLoReHyPar.a 

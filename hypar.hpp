@@ -61,12 +61,65 @@ struct fpga {
     std::vector<int> nodes{};
 };
 
+// 并查集结构，带有节点数量统计
+struct UnionFind {
+    std::vector<int> parent;
+    std::vector<int> rank;
+    std::vector<int> size; // 用来记录每个集合的节点数量
+    UnionFind() = default;
+    // 初始化并查集
+    UnionFind(int n) : parent(n), rank(n, 0), size(n, 1) {
+        for (int i = 0; i < n; ++i) parent[i] = i;
+    }
+
+
+    // 查找根节点，并进行路径压缩
+    int find(int x) {
+        if (parent[x] != x) {
+            parent[x] = find(parent[x]);
+        }
+        return parent[x];
+    }
+
+    // 合并两个集合
+    void unite(int x, int y) {
+        int rootX = find(x);
+        int rootY = find(y);
+
+        if (rootX != rootY) {
+            // 按秩合并
+            if (rank[rootX] > rank[rootY]) {
+                parent[rootY] = rootX;
+                size[rootX] += size[rootY]; // 更新 rootX 集合的节点数
+            } else if (rank[rootX] < rank[rootY]) {
+                parent[rootX] = rootY;
+                size[rootY] += size[rootX]; // 更新 rootY 集合的节点数
+            } else {
+                parent[rootY] = rootX;
+                size[rootX] += size[rootY]; // 更新 rootX 集合的节点数
+                ++rank[rootX];
+            }
+        }
+    }
+
+    // 获取某个节点所在集合的节点数量
+    int getSize(int x) {
+        int root = find(x);
+        return size[root];
+    }
+};
+
+
+
+
+
 class HyPar {
 private:
     int maxHop, K; // number of partitions
     std::string inputDir, outputFile;
     std::unordered_map<std::string, int> node2id;
     std::unordered_map<std::string, int> fpga2id;
+    UnionFind uf;    
     std::vector<node> nodes;
     int resLoadAll[NUM_RES]{};
     std::vector<net> nets;
@@ -108,6 +161,7 @@ private:
 
 public:
     HyPar() = default;
+    HyPar(int numNodes);
     HyPar(std::string _inputDir, std::string _outputFile);
     HyPar(const HyPar &other) = default;
     ~HyPar() = default;
@@ -116,6 +170,8 @@ public:
     void readAre(std::ifstream &are);
     void readNet(std::ifstream &net);
     void readTopo(std::ifstream &topo);
+
+    void debugUnconnectedGraph(std::ostream &out);//debug print the unconnected graph
 
     void printSummary(std::ostream &out);
     void printSummary(std::ofstream &out);

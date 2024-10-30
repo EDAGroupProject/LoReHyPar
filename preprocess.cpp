@@ -120,7 +120,7 @@ void HyPar::community_detect() {
             }
         }
     }
-    lv.run();
+    lv.run(uf);
     for (int c : lv.nodes) {
         bool flag = false;
         for (int u : lv.communityNodes[c]) {
@@ -138,6 +138,7 @@ void HyPar::community_detect() {
 }
 
 void HyPar::preprocess() {
+    Louvain lv(nets.size() + existing_nodes.size());
     existing_nodes.clear();
     deleted_nodes.clear();
     for(size_t i = 0; i < nodes.size(); ++i) {
@@ -145,4 +146,5 @@ void HyPar::preprocess() {
     }
     pin_sparsify();
     community_detect();
+    lv.print();
 }
