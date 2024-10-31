@@ -89,7 +89,7 @@ void HyPar::SCLa_propagation() {
             }
         }
     }
-    while (!unlabeled_nodes.empty()) {
+    for (int i = 0; i < K ; ++i) {
         for (auto it = unlabeled_nodes.begin(); it != unlabeled_nodes.end();) {
             int u = *it;
             std::unordered_map<int, int> gain_map;
@@ -128,12 +128,24 @@ void HyPar::SCLa_propagation() {
             }
         }
     }
+    std::uniform_int_distribution<int> dis(0, K - 1);
+    if (!unlabeled_nodes.empty()) {
+        for(auto node : unlabeled_nodes) {
+            int f = dis(rng);
+            nodes[node].fpga = f;
+            fpgas[f].nodes.push_back(node);
+            _fpga_add_force(f, node);
+            for (int net : nodes[node].nets) {
+                ++nets[net].fpgas[f];
+            }
+        }
+    }
 }
 
 // maybe consider global and sequential later
 // for now, I copied the refine.cpp to here, which definitely needs to be modified
 void HyPar::greedy_hypergraph_growth(int sel) { // I use this based on the former initial partition results
-    int gain_sum = 0, cnt = 0, min_pass = std::sqrt(nodes.size());
+    int gain_sum = 0, cnt = 0, min_pass = std::log(nodes.size());
     int max_sum = -INT_MAX, max_pass = -1;
     int total_gain_sum = 0;
     while (cnt < min_pass){ // the end condition can be modified
@@ -197,16 +209,11 @@ void HyPar::greedy_hypergraph_growth(int sel) { // I use this based on the forme
             fpgas[tf].nodes.erase(std::remove(fpgas[tf].nodes.begin(), fpgas[tf].nodes.end(), node), fpgas[tf].nodes.end());
             _fpga_remove_force(tf, node);
             nodes[node].fpga = of;
-            assert(of < K && of >= 0);
             fpgas[of].nodes.push_back(node);
             _fpga_add_force(of, node);
-        }
-        for (int i = max_pass; i >= 0; --i) {
-            auto [node, of] = move_seq[i];
-            int tf = nodes[node].fpga;
             for (int net : nodes[node].nets) {
-                --nets[net].fpgas[of];
-                ++nets[net].fpgas[tf];
+                --nets[net].fpgas[tf];
+                ++nets[net].fpgas[of];
             }
         }
         if (max_sum < double(total_gain_sum) / (cnt - 1)) {
@@ -220,9 +227,7 @@ void HyPar::initial_partition() {
     bool bestvalid = false, valid;
     int minHop = INT_MAX, hop;
     HyPar best, tmp;
-    std::uniform_int_distribution<int> dis(0, 2);
-    std::mt19937 rng = get_rng();
-    int sel[3] = {0, 1, 2};
+    int sel[4] = {0, 1, 2, 3};
     for (int i = 0; i < 20; ++i){
         tmp = *this;
         tmp.bfs_partition();
@@ -233,19 +238,9 @@ void HyPar::initial_partition() {
             bestvalid = valid;
             minHop = hop;
         }
-
-        std::shuffle(sel, sel + 3, rng);
-        for (int i = 0; i < 3; ++i) {
-            tmp.greedy_hypergraph_growth(sel[i]);
-            tmp._fpga_cal_conn();
-            tmp.evaluate(valid, hop);
-            if ((!bestvalid || valid) && hop < minHop) {
-                best = tmp;
-                bestvalid = valid;
-                minHop = hop;
-            }
-        }
-        
+        std::cout << "BFS Partition: " << hop << std::endl;
+    }
+    for (int i = 0; i < 20; ++i){
         tmp = *this;
         tmp.SCLa_propagation();
         tmp._fpga_cal_conn();
@@ -255,20 +250,57 @@ void HyPar::initial_partition() {
             bestvalid = valid;
             minHop = hop;
         }
-
-        std::shuffle(sel, sel + 3, rng);
-        for (int i = 0; i < 3; ++i) {
-            tmp.greedy_hypergraph_growth(sel[i]);
+        std::cout << "SCLa Partition: " << hop << std::endl;
+    }
+    bool flag = true;
+    while (flag) {
+        flag = false;
+        for (int i = 0; i < 20; ++i){
+            tmp = *this;
+            tmp.bfs_partition();
             tmp._fpga_cal_conn();
             tmp.evaluate(valid, hop);
             if ((!bestvalid || valid) && hop < minHop) {
+                flag = true;
                 best = tmp;
                 bestvalid = valid;
                 minHop = hop;
             }
+            std::cout << "BFS Partition: " << hop << std::endl;
+        }
+        for (int i = 0; i < 20; ++i){
+            tmp = *this;
+            tmp.SCLa_propagation();
+            tmp._fpga_cal_conn();
+            tmp.evaluate(valid, hop);
+            if ((!bestvalid || valid) && hop < minHop) {
+                flag = true;
+                best = tmp;
+                bestvalid = valid;
+                minHop = hop;
+            }
+            std::cout << "SCLa Partition: " << hop << std::endl;
+        }
+    }
+    tmp = best;
+    flag = true;
+    while (flag) {
+        flag = false;
+        for (int i = 0; i < 4; ++i){
+            tmp.greedy_hypergraph_growth(sel[i]);
+            tmp._fpga_cal_conn();
+            tmp.evaluate(valid, hop);
+            if ((!bestvalid || valid) && hop < minHop) {
+                flag = true;
+                best = tmp;
+                bestvalid = valid;
+                minHop = hop;
+            }
+            std::cout << "Greedy Hypergraph Growth: " << hop << std::endl;
         }
     }
     *this = std::move(best);
+    std::cout << "Initial Partition: " << hop << std::endl;
 }
 
 // how to meet the connectivity constraint?

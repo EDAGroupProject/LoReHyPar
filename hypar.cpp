@@ -286,6 +286,34 @@ void HyPar::_uncontract(int u, int v) {
     }
 }
 
+void HyPar::_uncontract(int u, int v, int f) {
+    assert(contract_memo.top() == std::make_pair(u, v));
+    contract_memo.pop();
+    nodes[u].size -= nodes[v].size;
+    existing_nodes.insert(v);
+    deleted_nodes.erase(v);
+    for (int i = 0; i < NUM_RES; ++i) {
+        nodes[u].resLoad[i] -= nodes[v].resLoad[i];
+    }
+    std::set<int> secNets;
+    std::set_intersection(nodes[u].nets.begin(), nodes[u].nets.end(), nodes[v].nets.begin(), nodes[v].nets.end(), std::inserter(secNets, secNets.begin()));
+    for (int net : secNets) {
+        if (nodes[v].isSou[net]) {
+            nets[net].source = v;
+            nodes[u].isSou[net] = false;
+        }
+        if (static_cast<int>(nets[net].nodes.size()) == nets[net].size || nets[net].nodes[nets[net].size] != v) { // v is relinked
+            auto uit = std::find(nets[net].nodes.begin(), nets[net].nodes.end(), u);
+            *uit = v;
+            nodes[u].nets.erase(net);
+            nodes[u].fp -= net * net;
+        }else{ // v is deleted
+            ++nets[net].size;
+            ++nets[net].fpgas[f];
+        }
+    }
+}
+
 float HyPar::_heavy_edge_rating(int u, int v) {
     std::set<int> secNets;
     std::set_intersection(nodes[u].nets.begin(), nodes[u].nets.end(), nodes[v].nets.begin(), nodes[v].nets.end(), std::inserter(secNets, secNets.begin()));
@@ -306,6 +334,9 @@ float HyPar::_heavy_edge_rating(int u, int v, std::unordered_map<std::pair<int, 
     }
     std::set<int> secNets;
     std::set_intersection(nodes[u].nets.begin(), nodes[u].nets.end(), nodes[v].nets.begin(), nodes[v].nets.end(), std::inserter(secNets, secNets.begin()));
+    if (secNets.empty()) {
+        return 0;
+    }
     float _rating = 0;
     for (int net : secNets) {
         if (nets[net].size > parameter_l) {
@@ -425,8 +456,6 @@ bool HyPar::_fpga_remove_force(int f, int u) {
 
 // @note: is there incremental update for the connectivity?
 void HyPar::_fpga_cal_conn() {
-    // fpgaConn.assign(K, 0); // only recalled once, when all 0, ensures the correctness
-    // std::unordered_map<std::pair<int, int>, bool, pair_hash> netVis; // unnecessary
     for (int i = 0; i < K; ++i) {
         fpgas[i].conn = 0;
     }
@@ -572,7 +601,7 @@ void HyPar::_cal_refine_gain(int u, int f, int sel, std::unordered_map<std::pair
         }
     }
     for (int tf = 0; tf < K; ++tf) {
-        if (toFpga[tf]) {
+        if (toFpga[tf] && fpgas[tf].resValid) {
             gain_map[{u, tf}] = _gain_function(f, tf, u, sel);
         } else {
             gain_map.erase({u, tf});

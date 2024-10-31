@@ -83,9 +83,8 @@ bool HyPar::fast_coarsen_in_community(int community) {
         for (int v : communities[community]) {
             if (u >= v) {
                 continue;
-            } else {
+            } else if(_heavy_edge_rating(u, v, rating)) {
                 node_pairs.emplace_back(u, v);
-                _heavy_edge_rating(u, v, rating);
             }
         }
     }
@@ -105,29 +104,27 @@ bool HyPar::fast_coarsen_in_community(int community) {
     return contFlag; 
 }
 
-void HyPar::coarsen_in_community_arbitary(int community, float threshold) {
+bool HyPar::naive_coarsen_in_community(int community) {
+    bool conFlag = false;
     std::vector<int> randNodes(communities[community].begin(), communities[community].end());
     std::shuffle(randNodes.begin(), randNodes.end(), get_rng());
     for (int u : randNodes) {
         if (!communities[community].count(u)) {
             continue;
         }
-        std::unordered_map<int, bool> vis;
         for (int net : nodes[u].nets) {
             for (int i = 0; i < nets[net].size; ++i) {
                 int w = nets[net].nodes[i];
-                if (w == u || !communities[community].count(w) || vis[w] || !_contract_eligible(u, w)) {
+                if (w == u || !communities[community].count(w) || !_contract_eligible(u, w)) {
                     continue;
                 }
-                vis[w] = true;
-                float rating = _heavy_edge_rating(u, w);
-                if (rating > threshold) {
-                    _contract(u, w);
-                    communities[community].erase(w);
-                }
+                conFlag = true;
+                _contract(u, w);
+                communities[community].erase(w);
             }
         }
     }
+    return conFlag;
 }
 
 void HyPar::coarsen() {
@@ -135,7 +132,6 @@ void HyPar::coarsen() {
     std::vector<int> communiy_vec(communities.size());
     std::iota(communiy_vec.begin(), communiy_vec.end(), 0);
     std::sort(communiy_vec.begin(), communiy_vec.end(), [&](int i, int j) {return communities[i].size() > communities[j].size();});
-    std::cout << "existing_nodes.size() = " << existing_nodes.size() << std::endl;
     // for (int c : communiy_vec) {
     //     if (existing_nodes.size() < static_cast<size_t>(K * parameter_t)) {
     //         break;
@@ -146,10 +142,16 @@ void HyPar::coarsen() {
         if (existing_nodes.size() < static_cast<size_t>(K * parameter_t)) {
             break;
         }
-        std::cout << "existing_nodes.size() = " << existing_nodes.size() << " community is " << c << std::endl;
         while (fast_coarsen_in_community(c) && existing_nodes.size() >= static_cast<size_t>(K * parameter_t)) {
             continue;
         }
     }
-    std::cout << "existing_nodes.size() = " << existing_nodes.size() << std::endl;
+    // for (int c : communiy_vec) {
+    //     if (existing_nodes.size() < static_cast<size_t>(K * parameter_t)) {
+    //         break;
+    //     }
+    //     while (naive_coarsen_in_community(c) && existing_nodes.size() >= static_cast<size_t>(K * parameter_t)) {
+    //         continue;
+    //     }
+    // }
 }

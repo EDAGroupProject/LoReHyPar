@@ -86,6 +86,7 @@ private:
     // basic operations
     void _contract(int u, int v);   // contract v into u
     void _uncontract(int u, int v); // uncontract v from u
+    void _uncontract(int u, int v, int f);  // uncontract v from u
     float _heavy_edge_rating(int u, int v); // rate the pair (u, v) "heavy edge"
     float _heavy_edge_rating(int u, int v, std::unordered_map<std::pair<int, int>, int, pair_hash> &rating); // rate the pair (u, v) "heavy edge"
     // void _init_net_fp();
@@ -140,7 +141,7 @@ public:
     void coarsen_naive();
     bool coarsen_in_community(int community);
     bool fast_coarsen_in_community(int community);
-    void coarsen_in_community_arbitary(int community, float threshold);
+    bool naive_coarsen_in_community(int community);
     // @todo: detect&remove parallel nets or single vertex nets
 
     // Initial Partitioning
@@ -148,11 +149,8 @@ public:
     void bfs_partition();
     void SCLa_propagation();
     void greedy_hypergraph_growth(int sel = 0);
+    void fast_greedy_hypergraph_growth(int sel = 0);
     // @todo: other partitioning methods to enrich the portfolio
-
-    // Map FGPA
-    // @todo: mapping function
-    void map_fpga();
 
     // Refinement
     void refine();

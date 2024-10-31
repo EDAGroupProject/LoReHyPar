@@ -363,9 +363,4 @@ void HyPar::preprocess() {
             ++it;
         }
     }
-    std::cout << communities.size() << std::endl;
-    for (size_t i = 0; i < communities.size(); ++i) {
-        std::cout << i << ": " << communities[i].size() << "\n";
-    }
-    std::cout << existing_nodes.size() << std::endl;
 }
