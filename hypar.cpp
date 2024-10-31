@@ -51,11 +51,13 @@ void HyPar::readNet(std::ifstream &net) {
         nets.back().source = id;
         nodes[id].nets.insert(nets.size() - 1);
         nodes[id].isSou[nets.size() - 1] = true;
+        nodes[id].fp += (nets.size() - 1) * (nets.size() - 1);
         iss >> nets.back().weight;
         while (iss >> name) {
             id = node2id[name];
             nets.back().nodes.emplace_back(id);
             nodes[id].nets.insert(nets.size() - 1);
+            nodes[id].fp += (nets.size() - 1) * (nets.size() - 1);
         }
         nets.back().size = nets.back().nodes.size();
     }
@@ -234,6 +236,7 @@ void HyPar::_contract(int u, int v) {
             nets[net].source = u;
             nodes[u].nets.insert(net);
             nodes[u].isSou[net] = true;
+            nodes[u].fp += net * net;
             // netFp[net] += u * u - v * v; // incrementally update the fingerprint
         }else{
             auto vit = std::find(nets[net].nodes.begin(), nets[net].nodes.end(), v);
@@ -244,6 +247,7 @@ void HyPar::_contract(int u, int v) {
             if (!nodes[u].nets.count(net)) { // u is not in the net, relink (u, net)
                 *vit = u;
                 nodes[u].nets.insert(net);
+                nodes[u].fp += net * net;
                 // netFp[net] += u * u - v * v; // incrementally update the fingerprint
             }
             else{ // u is in the net, delete v
@@ -275,6 +279,7 @@ void HyPar::_uncontract(int u, int v) {
             auto uit = std::find(nets[net].nodes.begin(), nets[net].nodes.end(), u);
             *uit = v;
             nodes[u].nets.erase(net);
+            nodes[u].fp -= net * net;
         }else{ // v is deleted
             ++nets[net].size;
         }
@@ -292,6 +297,24 @@ float HyPar::_heavy_edge_rating(int u, int v) {
         rating += (float) nets[net].weight / (nets[net].size - 1); // nets[net].size >= 2
     }
     return rating;
+}
+
+// u < v
+float HyPar::_heavy_edge_rating(int u, int v, std::unordered_map<std::pair<int, int>, int, pair_hash> &rating) {
+    if (rating.count({u, v})) {
+        return rating[{u, v}];
+    }
+    std::set<int> secNets;
+    std::set_intersection(nodes[u].nets.begin(), nodes[u].nets.end(), nodes[v].nets.begin(), nodes[v].nets.end(), std::inserter(secNets, secNets.begin()));
+    float _rating = 0;
+    for (int net : secNets) {
+        if (nets[net].size > parameter_l) {
+            continue;
+        }
+        _rating += (float) nets[net].weight / (nets[net].size - 1); // nets[net].size >= 2
+    }
+    rating[{u, v}] = _rating;
+    return _rating;
 }
 
 // void HyPar::_init_net_fp() {
@@ -342,6 +365,7 @@ void HyPar::_init_ceil_res() {
     for (int i = 0; i < NUM_RES; ++i) {
         ceil_rescap[i] = static_cast<int>(std::ceil(double(resLoadAll[i]) / (K * parameter_t)));
     }
+    ceil_size = static_cast<int>(std::ceil(double(nodes.size()) / (K * parameter_t)));
 }
 
 bool HyPar::_contract_eligible(int u, int v) {
@@ -350,7 +374,7 @@ bool HyPar::_contract_eligible(int u, int v) {
             return false;
         }
     }
-    return true;
+    return (nodes[u].size + nodes[v].size <= ceil_size);
 }
 
 // @note: the following 4 functions mean that we only check the resource constraint

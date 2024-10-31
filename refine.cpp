@@ -123,7 +123,7 @@ void HyPar::force_connectivity_refine() {
     std::sort(fpgaVec.begin(), fpgaVec.end(), [&](int a, int b) {
         return fpgaConn[a] > fpgaConn[b];
     });
-    int cnt;
+    int cnt = 0;
     for (int i = 0; i < K; ++i) {
         if (fpgaConn[fpgaVec[i]] <= 1) {
             cnt = i;

@@ -2,17 +2,32 @@
 
 int main() {
     std::ios::sync_with_stdio(false);
-    std::string inputDir="../testcase/case02", outputFile="../testcase/case02/design.fpga.out";
+    std::string inputDir="../testcase/case04", outputFile="../testcase/case04/design.fpga.out";
+    auto start = std::chrono::high_resolution_clock::now();
     HyPar hp(inputDir, outputFile);
-    std::cout << "Read done" << std::endl;
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start);
+    std::cout << "Read: " << duration.count() << "s" << std::endl;
+    start = std::chrono::high_resolution_clock::now();
     hp.preprocess();
-    std::cout << "Preprocess done" << std::endl;
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::seconds>(end - start);
+    std::cout << "Preprocess: " << duration.count() << "s" << std::endl;
+    start = std::chrono::high_resolution_clock::now();
     hp.coarsen();
-    std::cout << "Coarsen done" << std::endl;
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::seconds>(end - start);
+    std::cout << "Coarsen: " << duration.count() << "s" << std::endl;
+    start = std::chrono::high_resolution_clock::now();
     hp.initial_partition();
-    std::cout << "Initial partition done" << std::endl;
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::seconds>(end - start);
+    std::cout << "Initial partition: " << duration.count() << "s" << std::endl;
+    start = std::chrono::high_resolution_clock::now();
     hp.refine();
-    std::cout << "Refine done" << std::endl;
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::seconds>(end - start);
+    std::cout << "Refine: " << duration.count() << "s" << std::endl;
     hp.evaluate_summary(std::cout);
     return 0;
 }

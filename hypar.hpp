@@ -39,6 +39,7 @@ struct node {
     int fpga{-1}; // easy to signal the partition
     int resLoad[NUM_RES]{};
     int size{1};
+    int fp{};
     std::vector<int> reps{};
     std::set<int> nets{};
     std::unordered_map<int, bool> isSou{};
@@ -77,16 +78,16 @@ private:
     int parameter_l = 20; // parameter, do not evaluate nets with size more than parameter_l
     int parameter_tau = 5; // parameter, in SCLa propagation, the tau of the neighbors get the same label
     std::unordered_set<int> existing_nodes, deleted_nodes;
-    std::unordered_map<int, int> node2community;
     std::vector<std::unordered_set<int>> communities;
     std::stack<std::pair<int, int>> contract_memo;
     // std::unordered_map<int, int> netFp;
-    int ceil_rescap[NUM_RES]{};
+    int ceil_rescap[NUM_RES]{}, ceil_size{};
 
     // basic operations
     void _contract(int u, int v);   // contract v into u
     void _uncontract(int u, int v); // uncontract v from u
     float _heavy_edge_rating(int u, int v); // rate the pair (u, v) "heavy edge"
+    float _heavy_edge_rating(int u, int v, std::unordered_map<std::pair<int, int>, int, pair_hash> &rating); // rate the pair (u, v) "heavy edge"
     // void _init_net_fp();
     // void _detect_para_singv_net(); // detect and remove parallel nets or single vertex nets
     void _init_ceil_res();
@@ -125,13 +126,21 @@ public:
     // @todo: preprocessing function
     void preprocess();
     void pin_sparsify();
-    void community_detect();
+    void pin_sparsify_in_community(int community, int c_min, int c_max);
+    void fast_pin_sparsify();
+    void fast_pin_sparsify_in_community(int community, int c_min, int c_max);
+    int community_detect();
+    void contract_in_community(int community);
+    void contract_in_community(const std::unordered_set<int> &community, std::unordered_set<int> &active_nodes);
+    void recursive_community_contract();
 
     // Coarsening
     void coarsen();
     bool _coarsen_naive();
     void coarsen_naive();
     bool coarsen_in_community(int community);
+    bool fast_coarsen_in_community(int community);
+    void coarsen_in_community_arbitary(int community, float threshold);
     // @todo: detect&remove parallel nets or single vertex nets
 
     // Initial Partitioning
