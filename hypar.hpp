@@ -1,6 +1,7 @@
 #ifndef _HYPAR_FLAG
 #define _HYPAR_FLAG
 
+#include <subHyPar.hpp>
 #include <fstream>
 #include <iostream>
 #include <random>
@@ -33,7 +34,7 @@ struct pair_hash final {
     }
 };
 
-struct node {
+struct Node {
     std::string name{};
     int isRep{}; // is replicated node, dont know how to handle this
     int fpga{-1}; // easy to signal the partition
@@ -45,7 +46,7 @@ struct node {
     std::unordered_map<int, bool> isSou{};
 };
 
-struct net {
+struct Net {
     int weight{};
     int source{};
     int size{};
@@ -54,7 +55,7 @@ struct net {
     // when kvp.second == 0, it should be erased
 };
 
-struct fpga {
+struct Fpga {
     std::string name{};
     int maxConn{}, conn{};
     int resCap[NUM_RES]{}, resUsed[NUM_RES]{};
@@ -62,16 +63,18 @@ struct fpga {
     std::vector<int> nodes{};
 };
 
+class subHyPar;
+
 class HyPar {
 private:
+    friend class subHyPar;
     int maxHop, K; // number of partitions
     std::string inputDir, outputFile;
     std::unordered_map<std::string, int> node2id;
     std::unordered_map<std::string, int> fpga2id;
-    std::vector<node> nodes;
-    int resLoadAll[NUM_RES]{};
-    std::vector<net> nets;
-    std::vector<fpga> fpgas;
+    std::vector<Node> nodes;
+    std::vector<Net> nets;
+    std::vector<Fpga> fpgas;
     std::vector<std::vector<int>> fpgaMap;
 
     int parameter_t = 2; // parameter in the calculation of ceilRes
@@ -91,7 +94,6 @@ private:
     float _heavy_edge_rating(int u, int v, std::unordered_map<std::pair<int, int>, int, pair_hash> &rating); // rate the pair (u, v) "heavy edge"
     // void _init_net_fp();
     // void _detect_para_singv_net(); // detect and remove parallel nets or single vertex nets
-    void _init_ceil_res();
     bool _contract_eligible(int u, int v); // check if u and v are eligible to be contracted
     bool _fpga_add_try(int f, int u);
     bool _fpga_add_try_nochange(int f, int u);
@@ -105,8 +107,13 @@ private:
     int _hop_gain(int of, int tf, int u);
     int _connectivity_gain(int of, int tf, int u);
     int _gain_function(int of, int tf, int u, int sel = 0);
-    void _cal_inpar_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
-    void _cal_refine_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
+    void _max_net_gain(std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
+    void _FM_gain(int of, std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
+    void _hop_gain(int of, std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
+    void _connectivity_gain(int of, std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
+    void _gain_function(int of, std::unordered_set<int> &tf, int u, int sel, std::unordered_map<int, int> &gain_map);
+    void _cal_gain(int u, int f, int sel, std::priority_queue<std::tuple<int, int, int>> &gain_map);
+    void _run();
 
 public:
     HyPar() = default;
@@ -134,9 +141,11 @@ public:
     void contract_in_community(int community);
     void contract_in_community(const std::unordered_set<int> &community, std::unordered_set<int> &active_nodes);
     void recursive_community_contract();
+    void preprocess_for_next_round();
 
     // Coarsening
     void coarsen();
+    void fast_coarsen();
     bool _coarsen_naive();
     void coarsen_naive();
     bool coarsen_in_community(int community);
@@ -148,17 +157,17 @@ public:
     void initial_partition();
     void bfs_partition();
     void SCLa_propagation();
-    void greedy_hypergraph_growth(int sel = 0);
-    void fast_greedy_hypergraph_growth(int sel = 0);
+    void greedy_hypergraph_growth(int sel);
     // @todo: other partitioning methods to enrich the portfolio
 
     // Refinement
     void refine();
+    void fast_refine();
     void refine_naive();
-    void k_way_localized_refine(int sel = 0);
-    void fast_k_way_localized_refine(int sel = 0);
+    void k_way_localized_refine(int sel);
+    void fast_k_way_localized_refine(int num, int sel);
     void force_connectivity_refine();
-    bool force_validity_refine(int sel = 0);
+    bool force_validity_refine(int sel);
         
     // Replication
     // @todo: the implementation of the replication
@@ -176,6 +185,7 @@ public:
     // @warning: this is a very important part, we should implement this in the future
 
     void run();
+    void fast_run();
     void evaluate_summary(std::ostream &out);
     void evaluate(bool &valid, long long &hop);
 };

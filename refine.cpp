@@ -12,6 +12,9 @@ void HyPar::refine_naive() {
         int f = nodes[u].fpga;
         nodes[v].fpga = f;
         fpgas[f].nodes.push_back(v);
+        for (int net : nodes[v].nets) {
+            ++nets[net].fpgas[f];
+        }
     }
 }
 
@@ -27,40 +30,26 @@ void HyPar::k_way_localized_refine(int sel) {
     _uncontract(u, v, f);
     std::vector<std::pair<int,int>> move_seq; // (node, from_fpga)
     std::unordered_map<int, int> node_state; // 0: inactive, 1: active, 2: locked
-    std::unordered_map<std::pair<int,int>, int, pair_hash> gain_map; // (node, fpga) -> gain
+    std::priority_queue<std::tuple<int, int, int>> gain_map; // (gain, node, fpga)
     std::unordered_set<int> active_nodes;
-    auto comp = [&gain_map](const std::pair<int, int>& p1, const std::pair<int, int>& p2) {
-        return gain_map[p1] < gain_map[p2];
-    };
-    std::priority_queue<std::pair<int, int>, std::vector<std::pair<int, int>>, decltype(comp)> node_moves(comp);
     node_state[u] = 1;
     node_state[v] = 1;
     active_nodes.insert(u);
     active_nodes.insert(v);
-    _cal_refine_gain(u, f, sel, gain_map);
-    _cal_refine_gain(v, f, sel, gain_map);
-    for (int f = 0; f < K; ++f) {
-        if (gain_map.count({u, f})) {
-            node_moves.push({u, f});
-        }
-        if (gain_map.count({v, f})) {
-            node_moves.push({v, f});
-        }
-    }
+    _cal_gain(u, nodes[u].fpga, sel, gain_map);
+    _cal_gain(v, nodes[v].fpga, sel, gain_map);
     int gain_sum = 0, cnt = 0, min_pass = std::log(existing_nodes.size()) / std::log(2);
     int max_sum = -INT_MAX, max_pass = 0;
-    while ((cnt < min_pass || gain_sum > 0) && !node_moves.empty()) {
-        auto [max_n, max_tf] = node_moves.top();
-        node_moves.pop();
-        while (node_state[max_n] == 2 && !node_moves.empty()) {
-            std::tie(max_n, max_tf) = node_moves.top();
-            node_moves.pop();
+    while ((cnt < min_pass || gain_sum > 0) && !gain_map.empty()) {
+        auto [max_gain, max_n, max_tf] = gain_map.top();
+        gain_map.pop();
+        while (node_state[max_n] == 2 && !gain_map.empty()) {
+            std::tie(max_gain, max_n, max_tf) = gain_map.top();
+            gain_map.pop();
         }
-        if (node_moves.empty()) {
+        if (gain_map.empty()) {
             break;
         }
-        int max_gain = gain_map[{max_n, max_tf}];
-        node_moves.pop();
         if (max_gain <= 0) {
             ++cnt;
         } else {
@@ -88,12 +77,7 @@ void HyPar::k_way_localized_refine(int sel) {
                 if (node_state[v] >= 1) {
                     continue;
                 }
-                _cal_refine_gain(v, nodes[v].fpga, sel, gain_map);
-                for (int f = 0; f < K; ++f) {
-                    if (gain_map.count({v, f})) {
-                        node_moves.push({v, f});
-                    }
-                }
+                _cal_gain(v, nodes[v].fpga, sel, gain_map);
                 node_state[v] = 1;
             }
         }
@@ -114,47 +98,37 @@ void HyPar::k_way_localized_refine(int sel) {
     }
 }
 
-void HyPar::fast_k_way_localized_refine(int sel) {
-    auto [u, v] = contract_memo.top();
-    int f = nodes[u].fpga;
-    nodes[v].fpga = f;
-    fpgas[f].nodes.push_back(v);
-    _uncontract(u, v, f);
+void HyPar::fast_k_way_localized_refine(int num, int sel) {
     std::unordered_map<int, int> node_state; // 0: inactive, 1: active, 2: locked
-    std::unordered_map<std::pair<int,int>, int, pair_hash> gain_map; // (node, fpga) -> gain
+    std::priority_queue<std::tuple<int, int, int>> gain_map; // (gain, node, fpga)
     std::unordered_set<int> active_nodes;
-    auto comp = [&gain_map](const std::pair<int, int>& p1, const std::pair<int, int>& p2) {
-        return gain_map[p1] < gain_map[p2];
-    };
-    std::priority_queue<std::pair<int, int>, std::vector<std::pair<int, int>>, decltype(comp)> node_moves(comp);
-    node_state[u] = 1;
-    node_state[v] = 1;
-    active_nodes.insert(u);
-    active_nodes.insert(v);
-    _cal_refine_gain(u, f, sel, gain_map);
-    _cal_refine_gain(v, f, sel, gain_map);
-    for (int f = 0; f < K; ++f) {
-        if (gain_map.count({u, f})) {
-            node_moves.push({u, f});
-        }
-        if (gain_map.count({v, f})) {
-            node_moves.push({v, f});
-        }
+    for (int i = 0; i < num && !contract_memo.empty(); ++i) {
+        auto [u, v] = contract_memo.top();
+        int f = nodes[u].fpga;
+        nodes[v].fpga = f;
+        fpgas[f].nodes.push_back(v);
+        _uncontract(u, v, f);
+        node_state[u] = 1;
+        node_state[v] = 1;
+        active_nodes.insert(u);
+        active_nodes.insert(v);
     }
-    int max_pass = std::sqrt(existing_nodes.size());
-    for (int i = 0; i < max_pass && !node_moves.empty(); ++i) {
-        auto [max_n, max_tf] = node_moves.top();
-        node_moves.pop();
-        while (node_state[max_n] == 2 && !node_moves.empty()) {
-            std::tie(max_n, max_tf) = node_moves.top();
-            node_moves.pop();
+    for (int node : active_nodes) {
+        _cal_gain(node, nodes[node].fpga, sel, gain_map);
+    }
+    int max_pass = 1.1 * num;
+    for (int i = 0; i < max_pass && !gain_map.empty(); ++i) {
+        auto [max_gain, max_n, max_tf] = gain_map.top();
+        gain_map.pop();
+        while (node_state[max_n] == 2 && !gain_map.empty()) {
+            std::tie(max_gain, max_n, max_tf) = gain_map.top();
+            gain_map.pop();
         }
-        if (node_moves.empty()) {
+        if (gain_map.empty()) {
             break;
         }
-        int max_gain = gain_map[{max_n, max_tf}];
-        node_moves.pop();
-        if (max_gain < 0) {
+        gain_map.pop();
+        if (max_gain <= 0) {
             break;
         }
         int of = nodes[max_n].fpga;
@@ -173,12 +147,7 @@ void HyPar::fast_k_way_localized_refine(int sel) {
                 if (node_state[v] >= 1) {
                     continue;
                 }
-                _cal_refine_gain(v, nodes[v].fpga, sel, gain_map);
-                for (int f = 0; f < K; ++f) {
-                    if (gain_map.count({v, f})) {
-                        node_moves.push({v, f});
-                    }
-                }
+                _cal_gain(v, nodes[v].fpga, sel, gain_map);
                 node_state[v] = 1;
             }
         }
@@ -312,10 +281,36 @@ bool HyPar::force_validity_refine(int sel) {
 
 void HyPar::refine() {
     while (!contract_memo.empty()) {
-        fast_k_way_localized_refine(2);
-        // if (_fpga_cal_conn(), !_fpga_chk_conn()) {
-        //     force_connectivity_refine();
-        // }
+        auto start = std::chrono::high_resolution_clock::now();
+        k_way_localized_refine(2);
+        auto end = std::chrono::high_resolution_clock::now();
+        std::cout << "refine time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
+    }
+    if (!_fpga_chk_res()) {
+        for (int i = 0; i < K; ++i) {
+            if(force_validity_refine(2)) {
+                break;
+            }
+        }
+        for (int i = 0; i < K; ++i) {
+            if(force_validity_refine(3)) {
+                break;
+            }
+        }
+    }
+    // @note: how to ensure the validity of the solution?
+    // Since the organizer declares that getting a valid solution is easy, we just randomly assign nodes to fpgas
+}
+
+void HyPar::fast_refine() {
+    while (!contract_memo.empty()) {
+        // int num = std::sqrt(1 + contract_memo.size()) * std::log(1 + contract_memo.size());
+        int num = 1 + contract_memo.size() / 10;
+        std::cout << "refine num: " << num << std::endl;
+        auto start = std::chrono::high_resolution_clock::now();
+        fast_k_way_localized_refine(num, 2);
+        auto end = std::chrono::high_resolution_clock::now();
+        std::cout << "refine time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
     }
     if (!_fpga_chk_res()) {
         for (int i = 0; i < K; ++i) {

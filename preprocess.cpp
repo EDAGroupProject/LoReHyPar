@@ -173,7 +173,7 @@ void HyPar::pin_sparsify_in_community(int community, int c_min, int c_max) {
     std::unordered_set<int> active_nodes(communities[community]);
     std::mt19937 rng = get_rng();
     std::uniform_int_distribution<int> dis(0, hash_num - 1);
-    for (int hash_sel = 6; hash_sel >= 4; --hash_sel) {
+    for (int hash_sel = 3; hash_sel >= 1; --hash_sel) {
         size_t old_size = active_nodes.size();
         std::vector<int> slice(hash_sel);
         for (int i = 0; i < hash_sel; ++i) {
@@ -206,11 +206,11 @@ void HyPar::pin_sparsify_in_community(int community, int c_min, int c_max) {
                     vis[neighbor] = true;
                     if (hashTable[node] == hashTable[neighbor]) {
                         _contract(node, neighbor);
+                        communities[community].erase(neighbor);
                         active_nodes.erase(neighbor);
                     }
                 }
                 if (nodes[node].size >= c_max) {
-                    active_nodes.erase(node);
                     break;
                 }
             }
@@ -275,7 +275,6 @@ void HyPar::contract_in_community(int community) {
         _contract(u, v);
         it = communities[community].erase(it);
     }
-    communities[community].erase(u);
 } 
 
 void HyPar::contract_in_community(const std::unordered_set<int> &community, std::unordered_set<int> &active_nodes) {
@@ -364,4 +363,25 @@ void HyPar::preprocess() {
         }
     }
     std::cout << "After community contract: " << existing_nodes.size() << std::endl;
+}
+
+void HyPar::preprocess_for_next_round() {
+    existing_nodes.clear();
+    deleted_nodes.clear();
+    for(size_t i = 0; i < nodes.size(); ++i) {
+        existing_nodes.insert(i);
+    }
+    int max_size = community_detect();
+    int c_min = static_cast<int>(std::ceil(double(max_size) / (10)));
+    int c_max = static_cast<int>(std::ceil(double(nodes.size()) / (K * parameter_t)));
+    std::unordered_set<int> another_community;
+    for (size_t i = 0; i < communities.size(); ++i) {
+        if (static_cast<int>(communities[i].size()) <= c_min) {
+            another_community.insert(communities[i].begin(), communities[i].end());  
+        } else {
+            fast_pin_sparsify_in_community(i, c_min, c_max);
+        }
+    }
+    communities.emplace_back(another_community);
+    fast_pin_sparsify_in_community(communities.size() - 1, c_min, c_max);
 }
