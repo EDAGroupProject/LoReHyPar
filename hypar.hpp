@@ -156,6 +156,7 @@ public:
     void refine();
     void refine_naive();
     void k_way_localized_refine(int sel = 0);
+    void fast_k_way_localized_refine(int sel = 0);
     void force_connectivity_refine();
     bool force_validity_refine(int sel = 0);
         
@@ -176,7 +177,7 @@ public:
 
     void run();
     void evaluate_summary(std::ostream &out);
-    void evaluate(bool &valid, int &hop);
+    void evaluate(bool &valid, long long &hop);
 };
 
 #endif

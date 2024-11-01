@@ -86,11 +86,10 @@ void HyPar::readTopo(std::ifstream &topo) {
             }
         }
     }
-    int hop_max = maxHop * K * K;
     for (int i = 0; i < K; ++i) {
         for (int j = 0; j < K; j++) {
             if(fpgaMap[i][j] > maxHop) {
-                fpgaMap[i][j] = hop_max; // @warning: a large number to indicate no connection
+                fpgaMap[i][j] = K; // @warning: a large number to indicate no connection
             }
         }
     }
@@ -260,7 +259,6 @@ void HyPar::_contract(int u, int v) {
 }
 
 void HyPar::_uncontract(int u, int v) {
-    assert(contract_memo.top() == std::make_pair(u, v));
     contract_memo.pop();
     nodes[u].size -= nodes[v].size;
     existing_nodes.insert(v);
@@ -287,7 +285,6 @@ void HyPar::_uncontract(int u, int v) {
 }
 
 void HyPar::_uncontract(int u, int v, int f) {
-    assert(contract_memo.top() == std::make_pair(u, v));
     contract_memo.pop();
     nodes[u].size -= nodes[v].size;
     existing_nodes.insert(v);
@@ -626,7 +623,7 @@ void HyPar::evaluate_summary(std::ostream &out) {
             }
         }
     }
-    int totalHop = 0;
+    long long totalHop = 0;
     for (auto &net : nets) {
         int source = net.source;
         int sf = nodes[source].fpga;
@@ -646,7 +643,7 @@ void HyPar::evaluate_summary(std::ostream &out) {
     out << "Total Hop: " << totalHop << std::endl;
 }
 
-void HyPar::evaluate(bool &valid, int &hop) {
+void HyPar::evaluate(bool &valid, long long &hop) {
     valid = true;
     for (auto &fpga : fpgas) {
         if (!fpga.resValid || fpga.conn > fpga.maxConn) {

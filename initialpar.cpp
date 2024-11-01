@@ -225,10 +225,9 @@ void HyPar::greedy_hypergraph_growth(int sel) { // I use this based on the forme
 // @todo: other partitioning methods to enrich the portfolio
 void HyPar::initial_partition() {
     bool bestvalid = false, valid;
-    int minHop = INT_MAX, hop;
+    long long minHop = LONG_LONG_MAX, hop;
     HyPar best, tmp;
-    int sel[4] = {0, 1, 2, 3};
-    for (int i = 0; i < 20; ++i){
+    for (int i = 0; i < 10; ++i){
         tmp = *this;
         tmp.bfs_partition();
         tmp._fpga_cal_conn();
@@ -240,7 +239,7 @@ void HyPar::initial_partition() {
         }
         std::cout << "BFS Partition: " << hop << std::endl;
     }
-    for (int i = 0; i < 20; ++i){
+    for (int i = 0; i < 10; ++i){
         tmp = *this;
         tmp.SCLa_propagation();
         tmp._fpga_cal_conn();
@@ -255,50 +254,46 @@ void HyPar::initial_partition() {
     bool flag = true;
     while (flag) {
         flag = false;
-        for (int i = 0; i < 20; ++i){
-            tmp = *this;
-            tmp.bfs_partition();
-            tmp._fpga_cal_conn();
-            tmp.evaluate(valid, hop);
-            if ((!bestvalid || valid) && hop < minHop) {
-                flag = true;
-                best = tmp;
-                bestvalid = valid;
-                minHop = hop;
-            }
-            std::cout << "BFS Partition: " << hop << std::endl;
+        tmp = *this;
+        tmp.bfs_partition();
+        tmp._fpga_cal_conn();
+        tmp.evaluate(valid, hop);
+        if ((!bestvalid || valid) && hop < minHop) {
+            flag = true;
+            best = tmp;
+            bestvalid = valid;
+            minHop = hop;
         }
-        for (int i = 0; i < 20; ++i){
-            tmp = *this;
-            tmp.SCLa_propagation();
-            tmp._fpga_cal_conn();
-            tmp.evaluate(valid, hop);
-            if ((!bestvalid || valid) && hop < minHop) {
-                flag = true;
-                best = tmp;
-                bestvalid = valid;
-                minHop = hop;
-            }
-            std::cout << "SCLa Partition: " << hop << std::endl;
+        std::cout << "BFS Partition: " << hop << std::endl;
+        tmp = *this;
+        tmp.SCLa_propagation();
+        tmp._fpga_cal_conn();
+        tmp.evaluate(valid, hop);
+        if ((!bestvalid || valid) && hop < minHop){
+            flag = true;
+            best = tmp;
+            bestvalid = valid;
+            minHop = hop;
         }
+        std::cout << "SCLa Partition: " << hop << std::endl;
     }
     tmp = best;
     flag = true;
-    while (flag) {
-        flag = false;
-        for (int i = 0; i < 4; ++i){
-            tmp.greedy_hypergraph_growth(sel[i]);
-            tmp._fpga_cal_conn();
-            tmp.evaluate(valid, hop);
-            if ((!bestvalid || valid) && hop < minHop) {
-                flag = true;
-                best = tmp;
-                bestvalid = valid;
-                minHop = hop;
-            }
-            std::cout << "Greedy Hypergraph Growth: " << hop << std::endl;
-        }
-    }
+    // while (flag) {
+    //     flag = false;
+    //     for (int i = 1; i < 4; ++i){
+    //         tmp.greedy_hypergraph_growth(i);
+    //         tmp._fpga_cal_conn();
+    //         tmp.evaluate(valid, hop);
+    //         if ((!bestvalid || valid) && hop < minHop) {
+    //             flag = true;
+    //             best = tmp;
+    //             bestvalid = valid;
+    //             minHop = hop;
+    //         }
+    //         std::cout << "Greedy Hypergraph Growth: " << hop << std::endl;
+    //     }
+    // }
     *this = std::move(best);
     std::cout << "Initial Partition: " << hop << std::endl;
 }

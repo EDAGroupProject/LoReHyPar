@@ -363,4 +363,5 @@ void HyPar::preprocess() {
             ++it;
         }
     }
+    std::cout << "After community contract: " << existing_nodes.size() << std::endl;
 }

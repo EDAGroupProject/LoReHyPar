@@ -138,20 +138,21 @@ void HyPar::coarsen() {
     //     }
     //     coarsen_in_community_arbitary(c, 0.5);
     // }
-    for (int c : communiy_vec) {
-        if (existing_nodes.size() < static_cast<size_t>(K * parameter_t)) {
-            break;
-        }
-        while (fast_coarsen_in_community(c) && existing_nodes.size() >= static_cast<size_t>(K * parameter_t)) {
-            continue;
-        }
-    }
     // for (int c : communiy_vec) {
     //     if (existing_nodes.size() < static_cast<size_t>(K * parameter_t)) {
     //         break;
     //     }
-    //     while (naive_coarsen_in_community(c) && existing_nodes.size() >= static_cast<size_t>(K * parameter_t)) {
+    //     while (fast_coarsen_in_community(c) && existing_nodes.size() >= static_cast<size_t>(K * parameter_t)) {
     //         continue;
     //     }
     // }
+    for (int c : communiy_vec) {
+        if (existing_nodes.size() < static_cast<size_t>(K * parameter_t)) {
+            break;
+        }
+        while (naive_coarsen_in_community(c) && existing_nodes.size() >= static_cast<size_t>(K * parameter_t)) {
+            continue;
+        }
+    }
+    std::cout << "After coarsen: " << existing_nodes.size() << std::endl;
 }
