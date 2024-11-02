@@ -154,6 +154,46 @@ void HyPar::fast_k_way_localized_refine(int num, int sel) {
     }
 }
 
+void HyPar::only_fast_k_way_localized_refine(int num, int sel) {
+    std::unordered_map<int, bool> node_locked;
+    std::priority_queue<std::tuple<int, int, int>> gain_map; // (gain, node, fpga)
+    std::unordered_set<int> active_nodes;
+    for (int i = 0; i < num && !contract_memo.empty(); ++i) {
+        auto [u, v] = contract_memo.top();
+        int f = nodes[u].fpga;
+        nodes[v].fpga = f;
+        fpgas[f].nodes.push_back(v);
+        _uncontract(u, v, f);
+        active_nodes.insert(u);
+        active_nodes.insert(v);
+    }
+    for (int node : active_nodes) {
+        _cal_gain(node, nodes[node].fpga, sel, gain_map);
+    }
+    while(!gain_map.empty()) {
+        auto [max_gain, max_n, max_tf] = gain_map.top();
+        gain_map.pop();
+        while (node_locked[max_n] && !gain_map.empty()) {
+            std::tie(max_gain, max_n, max_tf) = gain_map.top();
+            gain_map.pop();
+        }
+        if (gain_map.empty()) {
+            break;
+        }
+        gain_map.pop();
+        if (max_gain <= 0) {
+            break;
+        }
+        int of = nodes[max_n].fpga;
+        fpgas[of].nodes.erase(std::remove(fpgas[of].nodes.begin(), fpgas[of].nodes.end(), max_n), fpgas[of].nodes.end());
+        _fpga_remove_force(of, max_n);
+        nodes[max_n].fpga = max_tf;
+        fpgas[max_tf].nodes.push_back(max_n);
+        _fpga_add_force(max_tf, max_n);
+        node_locked[max_n] = true;
+    }
+}
+
 void HyPar::force_connectivity_refine() {
     std::vector<int> fpgaVec(K);
     std::vector<double> fpgaConn(K);
@@ -323,6 +363,32 @@ void HyPar::fast_refine() {
                 break;
             }
         }
+    }
+    // @note: how to ensure the validity of the solution?
+    // Since the organizer declares that getting a valid solution is easy, we just randomly assign nodes to fpgas
+}
+
+void HyPar::only_fast_refine() {
+    while (!contract_memo.empty()) {
+        int num = std::log(existing_nodes.size());
+        std::cout << "refine num: " << num << std::endl;
+        only_fast_k_way_localized_refine(num, 2);
+    }
+    while (!_fpga_chk_res()) {
+        for (int i = 0; i < K; ++i) {
+            if(force_validity_refine(2)) {
+                break;
+            }
+        }
+        for (int i = 0; i < K; ++i) {
+            if(force_validity_refine(3)) {
+                break;
+            }
+        }
+    }
+    _fpga_cal_conn();
+    while (!_fpga_chk_conn()) {
+        force_connectivity_refine();
     }
     // @note: how to ensure the validity of the solution?
     // Since the organizer declares that getting a valid solution is easy, we just randomly assign nodes to fpgas

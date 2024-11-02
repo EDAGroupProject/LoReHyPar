@@ -18,7 +18,7 @@ add_custom_command(
     COMMENT "Generating LSHConstants.hpp using LSHConstantsGen"
 )
 
-add_library(${PROJECT_NAME} STATIC hypar.cpp preprocess.cpp coarsen.cpp initialpar.cpp refine.cpp subHyPar.cpp)
+add_library(${PROJECT_NAME} STATIC hypar.cpp preprocess.cpp coarsen.cpp initialpar.cpp refine.cpp)
 include_directories(PUBLIC "${PROJECT_SOURCE_DIR}")
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR})
 

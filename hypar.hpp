@@ -1,7 +1,6 @@
 #ifndef _HYPAR_FLAG
 #define _HYPAR_FLAG
 
-#include <subHyPar.hpp>
 #include <fstream>
 #include <iostream>
 #include <random>
@@ -63,11 +62,8 @@ struct Fpga {
     std::vector<int> nodes{};
 };
 
-class subHyPar;
-
 class HyPar {
 private:
-    friend class subHyPar;
     int maxHop, K; // number of partitions
     std::string inputDir, outputFile;
     std::unordered_map<std::string, int> node2id;
@@ -107,6 +103,7 @@ private:
     int _hop_gain(int of, int tf, int u);
     int _connectivity_gain(int of, int tf, int u);
     int _gain_function(int of, int tf, int u, int sel = 0);
+    void _cal_inpar_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
     void _max_net_gain(std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
     void _FM_gain(int of, std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
     void _hop_gain(int of, std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
@@ -155,6 +152,7 @@ public:
 
     // Initial Partitioning
     void initial_partition();
+    void fast_initial_partition();
     void bfs_partition();
     void SCLa_propagation();
     void greedy_hypergraph_growth(int sel);
@@ -163,9 +161,11 @@ public:
     // Refinement
     void refine();
     void fast_refine();
+    void only_fast_refine();
     void refine_naive();
     void k_way_localized_refine(int sel);
     void fast_k_way_localized_refine(int num, int sel);
+    void only_fast_k_way_localized_refine(int num, int sel);
     void force_connectivity_refine();
     bool force_validity_refine(int sel);
         

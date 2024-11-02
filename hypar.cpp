@@ -569,6 +569,15 @@ int HyPar::_gain_function(int of, int tf, int u, int sel){
     }
 }
 
+void HyPar::_cal_inpar_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map){
+    for (int tf = 0; tf < K; ++tf) {
+        if (tf == f) {
+            continue;
+        }
+        gain_map[{u, tf}] = _gain_function(f, tf, u, sel);
+    }
+}
+
 // GHG gain functions
 void HyPar::_max_net_gain(std::unordered_set<int> &tfs, int u, std::unordered_map<int, int> &gain_map) {
     for (int net : nodes[u].nets) {
@@ -765,34 +774,18 @@ void HyPar::_run() {
 
 void HyPar::fast_run() {
     auto start = std::chrono::high_resolution_clock::now();
-    preprocess_for_next_round();
+    preprocess();
     auto end = std::chrono::high_resolution_clock::now();
-    std::cout << "Preprocess done: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
-    std::vector<int> community_vec(communities.size());
-    std::iota(community_vec.begin(), community_vec.end(), 0);
-    std::sort(community_vec.begin(), community_vec.end(), [&](int i, int j) {return communities[i].size() > communities[j].size();});
-    for (int i : community_vec) {
-        subHyPar shp(*this, communities[i]);
-        shp.run();
-        for (int u : communities[i]) {
-            int f = shp.nodes[u].fpga;
-            nodes[u].fpga = f;
-            fpgas[f].nodes.push_back(u);
-        }
-        for (const auto &[i, net] : shp.nets) {
-            for (const auto &[f, n] : net.fpgas) {
-                if (n) {
-                    nets[i].fpgas[f] += n;
-                }
-            }
-        }
-    } 
+    std::cout  << "Preprocess time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
+    fast_coarsen();
     end = std::chrono::high_resolution_clock::now();
-    std::cout << "Subhypar run done: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
+    std::cout << "Coarsen time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
+    fast_initial_partition();
+    end = std::chrono::high_resolution_clock::now();
+    std::cout << "Initial partition time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
     fast_refine();
     end = std::chrono::high_resolution_clock::now();
-    std::cout << "Refine done: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
-    evaluate_summary(std::cout);
+    std::cout << "Refine time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
     // std::ofstream out(outputFile);
     // printOut(out);
 }

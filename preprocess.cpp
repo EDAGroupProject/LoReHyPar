@@ -377,9 +377,17 @@ void HyPar::preprocess_for_next_round() {
     std::unordered_set<int> another_community;
     for (size_t i = 0; i < communities.size(); ++i) {
         if (static_cast<int>(communities[i].size()) <= c_min) {
-            another_community.insert(communities[i].begin(), communities[i].end());  
+            another_community.insert(communities[i].begin(), communities[i].end());
+            communities[i].clear();
         } else {
             fast_pin_sparsify_in_community(i, c_min, c_max);
+        }
+    }
+    for (auto it = communities.begin(); it != communities.end();) {
+        if (it->empty()) {
+            it = communities.erase(it);
+        } else {
+            ++it;
         }
     }
     communities.emplace_back(another_community);
