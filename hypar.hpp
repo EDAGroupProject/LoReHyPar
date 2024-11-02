@@ -37,7 +37,7 @@ struct Node {
     std::string name{};
     int isRep{}; // is replicated node, dont know how to handle this
     int fpga{-1}; // easy to signal the partition
-    int resLoad[NUM_RES]{};
+    double resLoad[NUM_RES]{};
     int size{1};
     int fp{};
     std::vector<int> reps{};
@@ -46,7 +46,7 @@ struct Node {
 };
 
 struct Net {
-    int weight{};
+    double weight{};
     int source{};
     int size{};
     std::vector<int> nodes{};
@@ -57,9 +57,10 @@ struct Net {
 struct Fpga {
     std::string name{};
     int maxConn{}, conn{};
-    int resCap[NUM_RES]{}, resUsed[NUM_RES]{};
+    double resCap[NUM_RES]{}, resUsed[NUM_RES]{};
     bool resValid{true}; // update after add or remove a node
-    std::vector<int> nodes{};
+    std::unordered_set<int> nodes{};
+    std::vector<int> neighbors{};
 };
 
 class HyPar {
@@ -78,9 +79,10 @@ private:
     int parameter_tau = 5; // parameter, in SCLa propagation, the tau of the neighbors get the same label
     std::unordered_set<int> existing_nodes, deleted_nodes;
     std::vector<std::unordered_set<int>> communities;
+    std::unordered_map<int, int> node2community;
     std::stack<std::pair<int, int>> contract_memo;
     // std::unordered_map<int, int> netFp;
-    int ceil_rescap[NUM_RES]{}, ceil_size{};
+    double ceil_rescap[NUM_RES]{}, ceil_size{};
 
     // basic operations
     void _contract(int u, int v);   // contract v into u
@@ -95,7 +97,7 @@ private:
     bool _fpga_add_try_nochange(int f, int u);
     bool _fpga_add_force(int f, int u);
     bool _fpga_remove_force(int f, int u);
-    void _fpga_cal_conn();
+    long long _fpga_cal_conn();
     bool _fpga_chk_conn();
     bool _fpga_chk_res();
     int _max_net_gain(int tf, int u);
@@ -110,7 +112,6 @@ private:
     void _connectivity_gain(int of, std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
     void _gain_function(int of, std::unordered_set<int> &tf, int u, int sel, std::unordered_map<int, int> &gain_map);
     void _cal_gain(int u, int f, int sel, std::priority_queue<std::tuple<int, int, int>> &gain_map);
-    void _run();
 
 public:
     HyPar() = default;
@@ -148,6 +149,7 @@ public:
     bool coarsen_in_community(int community);
     bool fast_coarsen_in_community(int community);
     bool naive_coarsen_in_community(int community);
+    bool coarsen_by_nets();
     // @todo: detect&remove parallel nets or single vertex nets
 
     // Initial Partitioning
@@ -168,6 +170,7 @@ public:
     void only_fast_k_way_localized_refine(int num, int sel);
     void force_connectivity_refine();
     bool force_validity_refine(int sel);
+    bool refine_max_hop();
         
     // Replication
     // @todo: the implementation of the replication

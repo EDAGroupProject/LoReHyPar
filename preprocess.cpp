@@ -125,7 +125,7 @@ void HyPar::fast_pin_sparsify_in_community(int community, int c_min, int c_max) 
     std::unordered_set<int> active_nodes(communities[community]);
     std::mt19937 rng = get_rng();
     std::uniform_int_distribution<int> dis(0, hash_num - 1);
-    for (int hash_sel = 4; hash_sel >= 1; --hash_sel) {
+    for (int hash_sel = 4; hash_sel >= 2; --hash_sel) {
         std::vector<int> slice(hash_sel);
         for (int i = 0; i < hash_sel; ++i) {
             int rd = dis(rng);
@@ -349,17 +349,13 @@ void HyPar::preprocess() {
     int c_min = static_cast<int>(std::ceil(double(max_size) / (10)));
     int c_max = static_cast<int>(std::ceil(double(nodes.size()) / (K * parameter_t)));
     for (size_t i = 0; i < communities.size(); ++i) {
-        if (static_cast<int>(communities[i].size()) <= c_min) {
-            contract_in_community(i);  
-        } else {
+        if (static_cast<int>(communities[i].size()) > c_min) {
             fast_pin_sparsify_in_community(i, c_min, c_max);
         }
     }
-    for (auto it = communities.begin(); it != communities.end();) {
-        if (it->size() <= 1) {
-            it = communities.erase(it);
-        } else {
-            ++it;
+    for (size_t i = 0; i < communities.size(); ++i) {
+        for (int u : communities[i]) {
+            node2community[u] = i;
         }
     }
     std::cout << "After community contract: " << existing_nodes.size() << std::endl;

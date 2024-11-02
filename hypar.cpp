@@ -39,9 +39,9 @@ void HyPar::readAre(std::ifstream &are) {
         }
     }
     for (int i = 0; i < NUM_RES; ++i) {
-        ceil_rescap[i] = static_cast<int>(std::ceil(ceil_rescap[i] / (K * parameter_t)));
+        ceil_rescap[i] = ceil_rescap[i] / (K * parameter_t);
     }
-    ceil_size = static_cast<int>(std::ceil(double(nodes.size()) / (K * parameter_t)));
+    ceil_size = double(nodes.size()) / (K * parameter_t);
 }
 
 void HyPar::readNet(std::ifstream &net) {
@@ -94,9 +94,16 @@ void HyPar::readTopo(std::ifstream &topo) {
     for (int i = 0; i < K; ++i) {
         for (int j = 0; j < K; j++) {
             if(fpgaMap[i][j] > maxHop) {
-                fpgaMap[i][j] = K; // @warning: a large number to indicate no connection
+                fpgaMap[i][j] = K * maxHop; // @warning: a large number to indicate no connection
+            } else {
+                fpgas[i].neighbors.emplace_back(j);
             }
         }
+    }
+    for (int i = 0; i < K; ++i) {
+        std::sort(fpgas[i].neighbors.begin(), fpgas[i].neighbors.end(), [&](int a, int b) {
+            return fpgaMap[i][a] < fpgaMap[i][b];
+        });
     }
 }
 
@@ -449,7 +456,8 @@ bool HyPar::_fpga_remove_force(int f, int u) {
 }
 
 // @note: is there incremental update for the connectivity?
-void HyPar::_fpga_cal_conn() {
+long long HyPar::_fpga_cal_conn() {
+    long long conn = 0;
     for (int i = 0; i < K; ++i) {
         fpgas[i].conn = 0;
     }
@@ -460,9 +468,11 @@ void HyPar::_fpga_cal_conn() {
         for (auto kvp : net.fpgas) { // a cut net
             if (kvp.second) {
                 fpgas[kvp.first].conn += net.weight;
+                conn += net.weight;
             }
         }
     }
+    return conn;
 }
 
 bool HyPar::_fpga_chk_conn() {
@@ -671,13 +681,16 @@ void HyPar::_cal_gain(int u, int f, int sel, std::priority_queue<std::tuple<int,
     std::unordered_set<int> toFpga;
     for (int net : nodes[u].nets) {
         for (auto [ff, cnt] : nets[net].fpgas) {
-            if (cnt && ff != f  && fpgas[ff].resValid && fpgaMap[f][ff] <= maxHop) {
+            if (cnt && ff != f  && ff != -1 && fpgas[ff].resValid && fpgaMap[f][ff] <= maxHop) {
                 toFpga.insert(ff);
             }
         }
         if (static_cast<int>(toFpga.size()) == K - 1) {
             break;
         }
+    }
+    if (toFpga.empty()) {
+        return;
     }
     int maxGain = -INT_MAX, maxF = -1;
     std::unordered_map<int, int> _gain_map;
@@ -688,7 +701,9 @@ void HyPar::_cal_gain(int u, int f, int sel, std::priority_queue<std::tuple<int,
             maxF = ff;
         }
     }
-    gain_map.push({maxGain, u, maxF});
+    if (maxF != -1) {
+        gain_map.push({maxGain, u, maxF});
+    }
 }
 
 void HyPar::evaluate_summary(std::ostream &out) {
@@ -766,21 +781,15 @@ void HyPar::run() {
     printOut(out);
 }
 
-void HyPar::_run() {
-    coarsen_naive();
-    initial_partition();
-    refine();
-}
-
 void HyPar::fast_run() {
     auto start = std::chrono::high_resolution_clock::now();
     preprocess();
     auto end = std::chrono::high_resolution_clock::now();
     std::cout  << "Preprocess time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
-    fast_coarsen();
+    coarsen();
     end = std::chrono::high_resolution_clock::now();
     std::cout << "Coarsen time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
-    fast_initial_partition();
+    initial_partition();
     end = std::chrono::high_resolution_clock::now();
     std::cout << "Initial partition time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
     fast_refine();
