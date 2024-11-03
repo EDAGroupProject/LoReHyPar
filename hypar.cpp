@@ -23,9 +23,13 @@ void HyPar::readInfo(std::ifstream &info) {
         info >> fpgas.back().maxConn;
         for (int i = 0; i < NUM_RES; ++i) {
             info >> fpgas.back().resCap[i];
+            ceil_rescap[i] += fpgas.back().resCap[i];
         }
     }
     K = fpgas.size();
+    for (int i = 0; i < NUM_RES; ++i) {
+        ceil_rescap[i] = ceil_rescap[i] / (K * parameter_t);
+    }
 }
 
 void HyPar::readAre(std::ifstream &are) {
@@ -35,11 +39,7 @@ void HyPar::readAre(std::ifstream &are) {
         nodes.emplace_back(Node{name});
         for (int i = 0; i < NUM_RES; ++i) {
             are >> nodes.back().resLoad[i];
-            ceil_rescap[i] += nodes.back().resLoad[i];
         }
-    }
-    for (int i = 0; i < NUM_RES; ++i) {
-        ceil_rescap[i] = ceil_rescap[i] / (K * parameter_t);
     }
     ceil_size = double(nodes.size()) / (K * parameter_t);
 }
@@ -466,7 +466,7 @@ long long HyPar::_fpga_cal_conn() {
             continue;
         }
         for (auto kvp : net.fpgas) { // a cut net
-            if (kvp.second) {
+            if (kvp.second > 0 && kvp.second < net.size) {
                 fpgas[kvp.first].conn += net.weight;
                 conn += net.weight;
             }
@@ -500,7 +500,7 @@ int HyPar::_max_net_gain(int tf, int u) {
         if (nets[net].size == 1) {
             continue;
         }
-        if (nets[net].fpgas.count(tf)) {
+        if (nets[net].fpgas[tf]) {
             gain += nets[net].weight;
         }
     }
@@ -513,10 +513,10 @@ int HyPar::_FM_gain(int of, int tf, int u) {
         if (nets[net].size == 1) {
             continue;
         }
-        if (nets[net].fpgas.count(tf) && nets[net].fpgas[tf] == nets[net].size - 1) {
+        if (nets[net].fpgas[tf] && nets[net].fpgas[tf] == nets[net].size - 1) {
             gain += nets[net].weight;
         }
-        if (nets[net].fpgas.count(of) && nets[net].fpgas[of] == nets[net].size) {
+        if (nets[net].fpgas[of] && nets[net].fpgas[of] == nets[net].size) {
             gain -= nets[net].weight;
         }
     }
@@ -679,13 +679,17 @@ void HyPar::_gain_function(int of, std::unordered_set<int> &tf, int u, int sel, 
 // due to the maxHop, we may not be able to implement the incremental update
 void HyPar::_cal_gain(int u, int f, int sel, std::priority_queue<std::tuple<int, int, int>> &gain_map) {
     std::unordered_set<int> toFpga;
+    std::unordered_map<int, bool> tofpgamap;
     for (int net : nodes[u].nets) {
         for (auto [ff, cnt] : nets[net].fpgas) {
             if (cnt && ff != f  && ff != -1 && fpgas[ff].resValid && fpgaMap[f][ff] <= maxHop) {
                 toFpga.insert(ff);
+                tofpgamap[ff] = true;
+            } else {
+                tofpgamap[ff] = false;
             }
         }
-        if (static_cast<int>(toFpga.size()) == K - 1) {
+        if (static_cast<int>(tofpgamap.size()) == K) {
             break;
         }
     }
@@ -789,10 +793,10 @@ void HyPar::fast_run() {
     coarsen();
     end = std::chrono::high_resolution_clock::now();
     std::cout << "Coarsen time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
-    initial_partition();
+    SCLa_propagation();
     end = std::chrono::high_resolution_clock::now();
     std::cout << "Initial partition time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
-    fast_refine();
+    only_fast_refine();
     end = std::chrono::high_resolution_clock::now();
     std::cout << "Refine time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
     // std::ofstream out(outputFile);

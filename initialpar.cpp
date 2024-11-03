@@ -6,17 +6,13 @@ void HyPar::bfs_partition() {
     std::vector<int> nodeVec(existing_nodes.begin(), existing_nodes.end());
     std::mt19937 rng = get_rng();
     std::shuffle(nodeVec.begin(), nodeVec.end(), rng);
-    std::vector<int> fpgaVec(K);
-    std::iota(fpgaVec.begin(), fpgaVec.end(), 0);
-    std::shuffle(fpgaVec.begin(), fpgaVec.end(), rng);
     std::uniform_int_distribution<int> dis(0, K - 1);
     for (auto it = nodeVec.begin(); it != nodeVec.end();) {
         if (nodes[*it].fpga != -1) {
             it = nodeVec.erase(it);
             continue;
         } 
-        int cur = dis(rng);
-        int f = fpgaVec[cur];
+        int f = dis(rng);
         if (_fpga_add_try(f, *it)) {
             std::queue<int> q;
             q.push(*it);
@@ -40,10 +36,26 @@ void HyPar::bfs_partition() {
             ++it;
         }
     }
+    // here we can choose the best fpga for the remaining nodes
     if (!nodeVec.empty()) {
         for(auto node : nodeVec) {
-            int cur = dis(rng); // @warning: it's too arbitrary
-            int f = fpgaVec[cur];
+            std::unordered_map<int, int> fpga_unavail;
+            for (int net : nodes[node].nets) {
+                int sf = nodes[nets[net].source].fpga;
+                if (sf != -1) {
+                    for (int k = 0; k < K; ++k) {
+                        if (fpgaMap[sf][k] > maxHop) {
+                            ++fpga_unavail[k];
+                        }
+                    }
+                }
+            }
+            std::vector<int> fpgaVec(K);
+            std::iota(fpgaVec.begin(), fpgaVec.end(), 0);
+            std::sort(fpgaVec.begin(), fpgaVec.end(), [&](int a, int b) {
+                return fpga_unavail[a] < fpga_unavail[b];
+            });
+            int f = fpgaVec[0];
             nodes[node].fpga = f;
             fpgas[f].nodes.insert(node);
             _fpga_add_force(f, node);
@@ -128,10 +140,25 @@ void HyPar::SCLa_propagation() {
             }
         }
     }
-    std::uniform_int_distribution<int> dis(0, K - 1);
-    if (!unlabeled_nodes.empty()) {
-        for(auto node : unlabeled_nodes) {
-            int f = dis(rng);
+    if (!nodeVec.empty()) {
+        for(auto node : nodeVec) {
+            std::unordered_map<int, int> fpga_unavail;
+            for (int net : nodes[node].nets) {
+                int sf = nodes[nets[net].source].fpga;
+                if (sf != -1) {
+                    for (int k = 0; k < K; ++k) {
+                        if (fpgaMap[sf][k] > maxHop) {
+                            ++fpga_unavail[k];
+                        }
+                    }
+                }
+            }
+            std::vector<int> fpgaVec(K);
+            std::iota(fpgaVec.begin(), fpgaVec.end(), 0);
+            std::sort(fpgaVec.begin(), fpgaVec.end(), [&](int a, int b) {
+                return fpga_unavail[a] < fpga_unavail[b];
+            });
+            int f = fpgaVec[0];
             nodes[node].fpga = f;
             fpgas[f].nodes.insert(node);
             _fpga_add_force(f, node);
@@ -150,13 +177,13 @@ void HyPar::greedy_hypergraph_growth(int sel) { // I use this based on the forme
     std::priority_queue<std::tuple<int, int, int>> gain_map; // (gain, node, fpga)
     std::vector<int> nodeVec(existing_nodes.begin(), existing_nodes.end());
     std::mt19937 rng = get_rng();
-    std::shuffle(nodeVec.begin(), nodeVec.end(), rng);
+    std::uniform_int_distribution<int> dis(0, existing_nodes.size() - 1);
     for (int i = 0; i < K; ++i) {
-        int u = nodeVec[i];
+        int u = nodeVec[dis(rng)];
         node_state[u] = 1;
         _cal_gain(u, i, sel, gain_map);
     }
-    int gain_sum = 0, cnt = 0, min_pass = std::log(existing_nodes.size()) / std::log(2);
+    int gain_sum = 0, cnt = 0, min_pass = std::log(existing_nodes.size());
     int max_sum = -INT_MAX, max_pass = 0;
     while ((cnt < min_pass || gain_sum > 0) && !gain_map.empty()) {
         auto [max_gain, max_n, max_tf] = gain_map.top();
@@ -197,6 +224,9 @@ void HyPar::greedy_hypergraph_growth(int sel) { // I use this based on the forme
                 _cal_gain(v, nodes[v].fpga, sel, gain_map);
                 node_state[v] = 1;
             }
+        }
+        if (gain_sum < double(max_sum * (K - 1)) / K) {
+            break;
         }
     }
     // now we go back to the best solution

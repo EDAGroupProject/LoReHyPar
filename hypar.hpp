@@ -168,9 +168,9 @@ public:
     void k_way_localized_refine(int sel);
     void fast_k_way_localized_refine(int num, int sel);
     void only_fast_k_way_localized_refine(int num, int sel);
-    void force_connectivity_refine();
-    bool force_validity_refine(int sel);
-    bool refine_max_hop();
+    bool refine_max_connectivity(int sel);
+    bool refine_res_validity(int sel);
+    bool refine_max_hop(int sel);
         
     // Replication
     // @todo: the implementation of the replication
