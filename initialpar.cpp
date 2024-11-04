@@ -5,8 +5,8 @@
 void HyPar::bfs_partition() {
     std::vector<int> nodeVec(existing_nodes.begin(), existing_nodes.end());
     std::mt19937 rng = get_rng();
-    std::shuffle(nodeVec.begin(), nodeVec.end(), rng);
     std::uniform_int_distribution<int> dis(0, K - 1);
+    std::shuffle(nodeVec.begin(), nodeVec.end(), rng);
     for (auto it = nodeVec.begin(); it != nodeVec.end();) {
         if (nodes[*it].fpga != -1) {
             it = nodeVec.erase(it);
@@ -14,18 +14,22 @@ void HyPar::bfs_partition() {
         } 
         int f = dis(rng);
         if (_fpga_add_try(f, *it)) {
+            nodes[*it].fpga = f;
+            fpgas[f].nodes.insert(*it);
+            _fpga_add_force(f, *it);
             std::queue<int> q;
             q.push(*it);
             while (!q.empty()) {
                 int u = q.front();
                 q.pop();
-                nodes[u].fpga = f;
-                fpgas[f].nodes.insert(u);
                 for (int net : nodes[u].nets) {
                     ++nets[net].fpgas[f]; // ready for the connectivity calculation
                     for (int i = 0; i < nets[net].size; ++i) {
                         int v = nets[net].nodes[i];
                         if (nodes[v].fpga == -1 && _fpga_add_try(f, v)) {
+                            nodes[v].fpga = f;
+                            fpgas[f].nodes.insert(v);
+                            _fpga_add_force(f, v);
                             q.push(v);
                         }
                     }
@@ -37,134 +41,180 @@ void HyPar::bfs_partition() {
         }
     }
     // here we can choose the best fpga for the remaining nodes
+    std::vector<int> fpgaVec(K);
+    std::iota(fpgaVec.begin(), fpgaVec.end(), 0);
+    std::shuffle(fpgaVec.begin(), fpgaVec.end(), rng);
     if (!nodeVec.empty()) {
-        for(auto node : nodeVec) {
-            std::unordered_map<int, int> fpga_unavail;
-            for (int net : nodes[node].nets) {
-                int sf = nodes[nets[net].source].fpga;
-                if (sf != -1) {
-                    for (int k = 0; k < K; ++k) {
-                        if (fpgaMap[sf][k] > maxHop) {
-                            ++fpga_unavail[k];
+        for (int u : nodeVec) {
+            if (nodes[u].fpga != -1) {
+                continue;
+            }
+            std::unordered_set<int> toFpga;
+            std::vector<int> tfs(K, 0);
+            for (int net : nodes[u].nets) {
+                int s = nets[net].source;
+                if (u == s) {
+                    for (auto [f, cnt] : nets[net].fpgas) {
+                        if (cnt) {
+                            for (auto it = toFpga.begin(); it != toFpga.end();) {
+                                int tf = *it;
+                                tfs[tf] += nets[net].size;
+                                if (fpgaMap[f][tf] > maxHop) {
+                                    it = toFpga.erase(it);
+                                } else {
+                                    ++it;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    int sf = nodes[s].fpga;
+                    if (sf == -1) {
+                        continue;
+                    }
+                    for (auto it = toFpga.begin(); it != toFpga.end();) {
+                        int tf = *it;
+                        tfs[tf] += nets[net].size;
+                        if (fpgaMap[sf][tf] > maxHop) {
+                            it = toFpga.erase(it);
+                        } else {
+                            ++it;
                         }
                     }
                 }
             }
-            std::vector<int> fpgaVec(K);
-            std::iota(fpgaVec.begin(), fpgaVec.end(), 0);
-            std::sort(fpgaVec.begin(), fpgaVec.end(), [&](int a, int b) {
-                return fpga_unavail[a] < fpga_unavail[b];
-            });
-            int f = fpgaVec[0];
-            nodes[node].fpga = f;
-            fpgas[f].nodes.insert(node);
-            _fpga_add_force(f, node);
-            for (int net : nodes[node].nets) {
-                ++nets[net].fpgas[f];
+            if (toFpga.empty()) {
+                int max_tf = std::max_element(tfs.begin(), tfs.end()) - tfs.begin();
+                nodes[u].fpga = max_tf;
+                fpgas[max_tf].nodes.insert(u);
+                _fpga_add_force(max_tf, u);
+                for (int net : nodes[u].nets) {
+                    ++nets[net].fpgas[max_tf];
+                }
+                continue;
+            }
+            int max_tf = -1, max_gain = -INT_MAX;
+            for (int tf : toFpga) {
+                if (tfs[tf] > max_gain) {
+                    max_gain = tfs[tf];
+                    max_tf = tf;
+                }
+            }
+            nodes[u].fpga = max_tf;
+            fpgas[max_tf].nodes.insert(u);
+            _fpga_add_force(max_tf, u);
+            for (int net : nodes[u].nets) {
+                ++nets[net].fpgas[max_tf];
             }
         }
     }
 }
 
 void HyPar::SCLa_propagation() {
-    std::unordered_set<int> unlabeled_nodes(existing_nodes);
-    std::vector<int> nodeVec(existing_nodes.begin(), existing_nodes.end());
     std::mt19937 rng = get_rng();
-    std::shuffle(nodeVec.begin(), nodeVec.end(), rng);
-    int step = (nodeVec.size() - 1) / K;
+    std::vector<int> fpgaVec(K);
+    std::iota(fpgaVec.begin(), fpgaVec.end(), 0);
+    std::shuffle(fpgaVec.begin(), fpgaVec.end(), rng);
+    std::vector<int> unlabeled_nodes(existing_nodes.begin(), existing_nodes.end());
+    std::shuffle(unlabeled_nodes.begin(), unlabeled_nodes.end(), rng);
     for (int i = 0; i < K; ++i) {
-        int u = nodeVec[i * step];
-        unlabeled_nodes.erase(u);
-        nodes[u].fpga = i;
-        fpgas[i].nodes.insert(u);
-        _fpga_add_force(i, u);
+        int f = fpgaVec[i];
+        int id = (unlabeled_nodes.size() * i) / K;
+        int u = unlabeled_nodes[id];
+        unlabeled_nodes.erase(unlabeled_nodes.begin() + id);
+        nodes[u].fpga = f;
+        fpgas[f].nodes.insert(u);
+        _fpga_add_force(f, u);
         int cnt = 0;
         for (int net : nodes[u].nets) {
-            ++nets[net].fpgas[i];
+            ++nets[net].fpgas[f];
             if (cnt >= parameter_tau) {
                 continue;
             }
-            for (int j = 0; j < nets[net].size; ++j) {
-                int v = nets[net].nodes[j];
-                if (cnt >= parameter_tau) {
-                    break;
-                }
-                if (nodes[v].fpga == -1 && _fpga_add_try(i, v)) {
-                    ++cnt;
-                    unlabeled_nodes.erase(v);
-                    nodes[v].fpga = i;
-                    fpgas[i].nodes.insert(v);
-                    for (int vnet : nodes[v].nets) {
-                        ++nets[vnet].fpgas[i];
-                    }
+            std::uniform_int_distribution<int> dis(0, nets[net].size - 1);
+            auto it = nets[net].nodes.begin();
+            std::advance(it, dis(rng));
+            int v = *it;
+            if (nodes[v].fpga == -1 && _fpga_add_try(f, v)) {
+                ++cnt;
+                unlabeled_nodes.erase(std::find(unlabeled_nodes.begin(), unlabeled_nodes.end(), v));
+                _fpga_add_force(f, v);
+                nodes[v].fpga = f;
+                fpgas[f].nodes.insert(v);
+                for (int vnet : nodes[v].nets) {
+                    ++nets[vnet].fpgas[f];
                 }
             }
         }
     }
-    for (int i = 0; i < K ; ++i) {
-        for (auto it = unlabeled_nodes.begin(); it != unlabeled_nodes.end();) {
-            int u = *it;
-            std::unordered_map<int, int> gain_map;
-            for (int net : nodes[u].nets) {
+    // for (int u : existing_nodes) {
+    //     if (std::find(unlabeled_nodes.begin(), unlabeled_nodes.end(), u) == unlabeled_nodes.end() && nodes[u].fpga == -1) {
+    //         std::cout << "Error: " << u << " is not labeled" << std::endl;
+    //     }
+    // }
+    for (int u : unlabeled_nodes) {
+        std::shuffle(fpgaVec.begin(), fpgaVec.end(), rng);
+        std::unordered_set<int> toFpga(fpgaVec.begin(), fpgaVec.end());
+        for (int tf : fpgaVec) {
+            if (!_fpga_add_try(tf, u)) {
+                toFpga.erase(tf);
+            }
+        }
+        std::vector<int> tfs(K, 0);
+        for (int net : nodes[u].nets) {
+            int s = nets[net].source;
+            if (u == s) {
                 for (auto [f, cnt] : nets[net].fpgas) {
-                    if (cnt == 0) {
-                        continue;
-                    }
-                    gain_map[f] += cnt * nets[net].weight; // @warning: the gain is arbitrary
-                }
-            }
-            if (gain_map.empty()) {
-                ++it;
-                continue;
-            }
-            int f_max = -1, gain_max = 0;
-            for (auto [f, g] : gain_map) {
-                if (g > gain_max && _fpga_add_try_nochange(f, u)) {
-                    f_max = f;
-                    gain_max = g;
-                }
-            }
-            if (f_max == -1) {
-                std::uniform_int_distribution<int> dis(0, gain_map.size() - 1);
-                bool steps = dis(rng);
-                auto it = gain_map.begin();
-                advance(it, steps);
-                f_max = it->first;
-            }
-            nodes[u].fpga = f_max;
-            fpgas[f_max].nodes.insert(u);
-            _fpga_add_force(f_max, u);
-            it = unlabeled_nodes.erase(it);
-            for (int net : nodes[u].nets) {
-                ++nets[net].fpgas[f_max];
-            }
-        }
-    }
-    if (!nodeVec.empty()) {
-        for(auto node : nodeVec) {
-            std::unordered_map<int, int> fpga_unavail;
-            for (int net : nodes[node].nets) {
-                int sf = nodes[nets[net].source].fpga;
-                if (sf != -1) {
-                    for (int k = 0; k < K; ++k) {
-                        if (fpgaMap[sf][k] > maxHop) {
-                            ++fpga_unavail[k];
+                    if (cnt) {
+                        for (auto it = toFpga.begin(); it != toFpga.end();) {
+                            int tf = *it;
+                            tfs[tf] += nets[net].size;
+                            if (fpgaMap[f][tf] > maxHop) {
+                                it = toFpga.erase(it);
+                            } else {
+                                ++it;
+                            }
                         }
                     }
                 }
+            } else {
+                int sf = nodes[s].fpga;
+                if (sf == -1) {
+                    continue;
+                }
+                for (auto it = toFpga.begin(); it != toFpga.end();) {
+                    int tf = *it;
+                    tfs[tf] += nets[net].size;
+                    if (fpgaMap[sf][tf] > maxHop) {
+                        it = toFpga.erase(it);
+                    } else {
+                        ++it;
+                    }
+                }
             }
-            std::vector<int> fpgaVec(K);
-            std::iota(fpgaVec.begin(), fpgaVec.end(), 0);
-            std::sort(fpgaVec.begin(), fpgaVec.end(), [&](int a, int b) {
-                return fpga_unavail[a] < fpga_unavail[b];
-            });
-            int f = fpgaVec[0];
-            nodes[node].fpga = f;
-            fpgas[f].nodes.insert(node);
-            _fpga_add_force(f, node);
-            for (int net : nodes[node].nets) {
-                ++nets[net].fpgas[f];
+        }
+        if (toFpga.empty()) {
+            int max_tf = std::max_element(tfs.begin(), tfs.end()) - tfs.begin();
+            nodes[u].fpga = max_tf;
+            fpgas[max_tf].nodes.insert(u);
+            _fpga_add_force(max_tf, u);
+            for (int net : nodes[u].nets) {
+                ++nets[net].fpgas[max_tf];
             }
+            continue;
+        }
+        int max_tf = -1, max_gain = -INT_MAX;
+        for (int tf : toFpga) {
+            if (tfs[tf] > max_gain) {
+                max_gain = tfs[tf];
+                max_tf = tf;
+            }
+        }
+        nodes[u].fpga = max_tf;
+        fpgas[max_tf].nodes.insert(u);
+        _fpga_add_force(max_tf, u);
+        for (int net : nodes[u].nets) {
+            ++nets[net].fpgas[max_tf];
         }
     }
 }
@@ -172,75 +222,79 @@ void HyPar::SCLa_propagation() {
 // maybe consider global and sequential later
 // for now, I copied the refine.cpp to here, which definitely needs to be modified
 void HyPar::greedy_hypergraph_growth(int sel) { // I use this based on the former initial partition results
-    std::vector<std::pair<int, int>> move_seq; // (node, from_fpga)
-    std::unordered_map<int, int> node_state; // 0: inactive, 1: active, 2: locked
-    std::priority_queue<std::tuple<int, int, int>> gain_map; // (gain, node, fpga)
-    std::vector<int> nodeVec(existing_nodes.begin(), existing_nodes.end());
-    std::mt19937 rng = get_rng();
-    std::uniform_int_distribution<int> dis(0, existing_nodes.size() - 1);
-    for (int i = 0; i < K; ++i) {
-        int u = nodeVec[dis(rng)];
-        node_state[u] = 1;
-        _cal_gain(u, i, sel, gain_map);
-    }
-    int gain_sum = 0, cnt = 0, min_pass = std::log(existing_nodes.size());
-    int max_sum = -INT_MAX, max_pass = 0;
-    while ((cnt < min_pass || gain_sum > 0) && !gain_map.empty()) {
-        auto [max_gain, max_n, max_tf] = gain_map.top();
-        gain_map.pop();
-        while (node_state[max_n] == 2 && !gain_map.empty()) {
-            std::tie(max_gain, max_n, max_tf) = gain_map.top();
-            gain_map.pop();
+    int gain_sum = 0, cnt = 0, min_pass = std::sqrt(nodes.size());
+    int max_sum = -INT_MAX, max_pass = -1;
+    while (cnt < min_pass){ // the end condition can be modified
+        max_sum = -INT_MAX, max_pass = -1;
+        gain_sum = 0;
+        std::vector<std::pair<int,int>> move_seq; // (node, from_fpga)
+        std::vector<int> node_state(nodes.size(), 1); // 0: active, 1: locked
+        std::unordered_map<std::pair<int,int>, int, pair_hash> gain_map; // (node, fpga) -> gain
+        std::unordered_set<int> active_nodes(existing_nodes);
+        for (int node : active_nodes) {
+            _cal_inpar_gain(node, nodes[node].fpga, sel, gain_map);
         }
-        if (gain_map.empty()) {
-            break;
-        }
-        if (max_gain <= 0) {
-            ++cnt;
-        } else {
-            cnt = 0;
-        }
-        int of = nodes[max_n].fpga;
-        move_seq.emplace_back(max_n, of);
-        gain_sum += max_gain;
-        if (gain_sum > max_sum) {
-            max_sum = gain_sum;
-            max_pass = static_cast<int>(move_seq.size() - 1);
-        }
-        fpgas[of].nodes.erase(max_n);
-        _fpga_remove_force(of, max_n);
-        nodes[max_n].fpga = max_tf;
-        fpgas[max_tf].nodes.insert(max_n);
-        _fpga_add_force(max_tf, max_n);
-        node_state[max_n] = 2;
-        for (int net : nodes[max_n].nets) {
-            --nets[net].fpgas[of];
-            ++nets[net].fpgas[max_tf];
-            for (int j = 0; j < nets[net].size; ++j) {
-                int v = nets[net].nodes[j];
-                if (node_state[v] >= 1) {
-                    continue;
+        while (!active_nodes.empty()) {
+            int max_gain = -INT_MAX, max_n = -1, max_tf;
+            for (int node : active_nodes) {
+                for (int f = 0; f < K; ++f) {
+                    if (fpgas[f].resValid && gain_map.count({node, f}) && gain_map[{node, f}] > max_gain) {
+                        max_gain = gain_map[{node, f}];
+                        max_n = node;
+                        max_tf = f;
+                    }
                 }
-                _cal_gain(v, nodes[v].fpga, sel, gain_map);
-                node_state[v] = 1;
+            }
+            if (max_n == -1) {
+                break;
+            }
+            int of = nodes[max_n].fpga;
+            move_seq.emplace_back(max_n, of);
+            gain_sum += max_gain;
+            if (gain_sum > max_sum) {
+                max_sum = gain_sum;
+                max_pass = static_cast<int>(move_seq.size() - 1);
+            }
+            fpgas[of].nodes.erase(max_n);
+            _fpga_remove_force(of, max_n);
+            nodes[max_n].fpga = max_tf;
+            fpgas[max_tf].nodes.insert(max_n);
+            _fpga_add_force(max_tf, max_n);
+            active_nodes.erase(max_n);
+            node_state[max_n] = 1;
+            for (int net : nodes[max_n].nets){
+                --nets[net].fpgas[of];
+                ++nets[net].fpgas[max_tf];
+                for (int j = 0; j < nets[net].size; ++j) {
+                    int v = nets[net].nodes[j];
+                    if (node_state[v] == 0) { // active
+                        _cal_inpar_gain(v, nodes[v].fpga, sel, gain_map);
+                    }
+                }
             }
         }
-        if (gain_sum < double(max_sum * (K - 1)) / K) {
+        ++cnt;
+        if (max_pass == -1) {
             break;
         }
-    }
-    // now we go back to the best solution
-    for (int i = static_cast<int>(move_seq.size()) - 1; i > max_pass; --i) {
-        auto [node, of] = move_seq[i];
-        int tf = nodes[node].fpga;
-        fpgas[tf].nodes.erase(node);
-        _fpga_remove_force(tf, node);
-        nodes[node].fpga = of;
-        fpgas[of].nodes.insert(node);
-        _fpga_add_force(of, node);
-        for (int net : nodes[node].nets) {
-            --nets[net].fpgas[tf];
-            ++nets[net].fpgas[of];
+        // now we go back to the best solution
+        for (int i = static_cast<int>(move_seq.size()) - 1; i > max_pass; --i) {
+            auto [node, of] = move_seq[i];
+            int tf = nodes[node].fpga;
+            fpgas[tf].nodes.erase(node);
+            _fpga_remove_force(tf, node);
+            nodes[node].fpga = of;
+            assert(of < K && of >= 0);
+            fpgas[of].nodes.insert(node);
+            _fpga_add_force(of, node);
+        }
+        for (int i = max_pass; i >= 0; --i) {
+            auto [node, of] = move_seq[i];
+            int tf = nodes[node].fpga;
+            for (int net : nodes[node].nets) {
+                --nets[net].fpgas[of];
+                ++nets[net].fpgas[tf];
+            }
         }
     }
 }
@@ -251,7 +305,7 @@ void HyPar::initial_partition() {
     long long best_totalconn = 0, conn;
     long long minHop = LONG_LONG_MAX, hop;
     HyPar best, tmp;
-    for (int i = 0; i < 10; ++i){
+    for (int i = 0; i < 20; ++i){
         tmp = *this;
         tmp.bfs_partition();
         conn = tmp._fpga_cal_conn();
@@ -263,7 +317,7 @@ void HyPar::initial_partition() {
         }
         std::cout << "BFS Partition: " << hop << std::endl;
     }
-    for (int i = 0; i < 10; ++i){
+    for (int i = 0; i < 20; ++i){
         tmp = *this;
         tmp.SCLa_propagation();
         conn = tmp._fpga_cal_conn();
@@ -276,23 +330,20 @@ void HyPar::initial_partition() {
         std::cout << "SCLa Partition: " << hop << std::endl;
     }
     tmp = best;
-    bool flag = true;
-    while (flag) {
-        flag = false;
-        for (int i = 1; i < 4; ++i){
-            tmp.greedy_hypergraph_growth(i);
-            conn = tmp._fpga_cal_conn();
-            tmp.evaluate(valid, hop);
-            if ((!bestvalid || valid) && (hop < minHop || conn < best_totalconn)) {
-                flag = true;
-                best = tmp;
-                bestvalid = valid;
-                minHop = hop;
-            }
-            std::cout << "Greedy Hypergraph Growth: " << hop << std::endl;
+    for (int i = 0; i < 10; ++i){
+        tmp.greedy_hypergraph_growth(2);
+        conn = tmp._fpga_cal_conn();
+        tmp.evaluate(valid, hop);
+        if ((!bestvalid || valid) && (hop < minHop || conn < best_totalconn)) {
+            best = tmp;
+            bestvalid = valid;
+            best_totalconn = conn;
+            minHop = hop;
         }
+        std::cout << "Greedy Hypergraph Growth: " << hop << std::endl;
     }
     *this = std::move(best);
+    // *this = std::move(tmp);
     if (!bestvalid) {
         std::cout << "No valid solution found!" << std::endl;
     }
@@ -311,7 +362,6 @@ void HyPar::fast_initial_partition() {
     if ((!bestvalid || valid) && (hop < minHop || conn < best_totalconn)) {
         best = tmp;
         bestvalid = valid;
-        best_totalconn = conn;
         minHop = hop;
     }
     std::cout << "BFS Partition: " << hop << std::endl;
@@ -319,31 +369,30 @@ void HyPar::fast_initial_partition() {
     tmp.SCLa_propagation();
     conn = tmp._fpga_cal_conn();
     tmp.evaluate(valid, hop);
-    if ((!bestvalid || valid) && (hop < minHop || conn < best_totalconn)){
+    if ((!bestvalid || valid) && (hop < minHop || conn < best_totalconn)) {
         best = tmp;
         bestvalid = valid;
-        best_totalconn = conn;
         minHop = hop;
     }
     std::cout << "SCLa Partition: " << hop << std::endl;
-    tmp = best;
-    for (int i = 1; i < 4; ++i){
-        tmp.greedy_hypergraph_growth(i);
-        conn = tmp._fpga_cal_conn();
-        tmp.evaluate(valid, hop);
-        if ((!bestvalid || valid) && (hop < minHop || conn < best_totalconn)) {
-            best = tmp;
-            bestvalid = valid;
-            best_totalconn = conn;
-            minHop = hop;
-        }
-        std::cout << "Greedy Hypergraph Growth: " << hop << std::endl;
-    }
+    // tmp = best;
+    // for (int i = 1; i < 3; ++i){
+    //     tmp.greedy_hypergraph_growth(i);
+    //     conn = tmp._fpga_cal_conn();
+    //     tmp.evaluate(valid, hop);
+    //     if ((!bestvalid || valid) && (hop < minHop || conn < best_totalconn)) {
+    //         best = tmp;
+    //         bestvalid = valid;
+    //         best_totalconn = conn;
+    //         minHop = hop;
+    //     }
+    //     std::cout << "Greedy Hypergraph Growth: " << hop << std::endl;
+    // }
     *this = std::move(best);
-    if (!bestvalid) {
-        std::cout << "No valid solution found!" << std::endl;
-    }
-    std::cout << "Initial Partition: " << minHop << std::endl;
+    // if (!bestvalid) {
+    //     std::cout << "No valid solution found!" << std::endl;
+    // }
+    // std::cout << "Initial Partition: " << minHop << std::endl;
 }
 
 // how to meet the connectivity constraint?

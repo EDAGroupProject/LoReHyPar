@@ -25,29 +25,36 @@ void HyPar::refine_naive() {
 void HyPar::k_way_localized_refine(int sel) {
     auto [u, v] = contract_memo.top();
     int f = nodes[u].fpga;
+    _uncontract(u, v, f);
     nodes[v].fpga = f;
     fpgas[f].nodes.insert(v);
-    _uncontract(u, v, f);
+    for (int net : nodes[v].nets) {
+        ++nets[net].fpgas[f];
+    }
     std::vector<std::pair<int,int>> move_seq; // (node, from_fpga)
     std::unordered_map<int, int> node_state; // 0: inactive, 1: active, 2: locked
-    std::priority_queue<std::tuple<int, int, int>> gain_map; // (gain, node, fpga)
+    std::unordered_map<std::pair<int,int>, int, pair_hash> gain_map; // (node, fpga) -> gain
     std::unordered_set<int> active_nodes;
     node_state[u] = 1;
     node_state[v] = 1;
     active_nodes.insert(u);
     active_nodes.insert(v);
-    _cal_gain(u, nodes[u].fpga, sel, gain_map);
-    _cal_gain(v, nodes[v].fpga, sel, gain_map);
-    int gain_sum = 0, cnt = 0, min_pass = std::log(existing_nodes.size()) / std::log(2);
+    _cal_refine_gain(u, f, sel, gain_map);
+    _cal_refine_gain(v, f, sel, gain_map);
+    int gain_sum = 0, cnt = 0, min_pass = std::log(nodes.size()) / std::log(2);
     int max_sum = -INT_MAX, max_pass = 0;
-    while ((cnt < min_pass || gain_sum > 0) && !gain_map.empty()) {
-        auto [max_gain, max_n, max_tf] = gain_map.top();
-        gain_map.pop();
-        while (node_state[max_n] == 2 && !gain_map.empty()) {
-            std::tie(max_gain, max_n, max_tf) = gain_map.top();
-            gain_map.pop();
+    while (cnt < min_pass || gain_sum > 0) {
+        int max_gain = -INT_MAX, max_n = -1, max_tf;
+        for (int node : active_nodes) {
+            for (int f = 0; f < K; ++f) {
+                if (gain_map.count({node, f}) && gain_map[{node, f}] > max_gain && _fpga_add_try(f, node)) {
+                    max_gain = gain_map[{node, f}];
+                    max_n = node;
+                    max_tf = f;
+                }
+            }
         }
-        if (gain_map.empty()) {
+        if (max_n == -1) {
             break;
         }
         if (max_gain <= 0) {
@@ -69,16 +76,31 @@ void HyPar::k_way_localized_refine(int sel) {
         _fpga_add_force(max_tf, max_n);
         node_state[max_n] = 2;
         active_nodes.erase(max_n);
+        std::unordered_map<int, bool> node_caled;
         for (int net : nodes[max_n].nets) {
             --nets[net].fpgas[of];
             ++nets[net].fpgas[max_tf];
             for (int j = 0; j < nets[net].size; ++j) {
                 int v = nets[net].nodes[j];
-                if (node_state[v] >= 1) {
+                if (node_state[v] == 2 || node_caled[v]) {
                     continue;
                 }
-                _cal_gain(v, nodes[v].fpga, sel, gain_map);
+                node_caled[v] = true;
+                _cal_refine_gain(v, nodes[v].fpga, sel, gain_map);
                 node_state[v] = 1;
+                // if (node_state[node] == 0) {
+                //     node_state[node] = 1;
+                //     active_nodes.insert(node);
+                //     _cal_refine_gain(node, nodes[node].fpga, sel, gain_map);
+                // } else if (node_state[node] == 1) { // @warning: Currently, we do not consider the case when the move enlarges the choice set
+                //     if (nets[net].source == max_n || nets[net].source == node) {
+                //         for (int f = 0; f < K; ++f) {
+                //             if (gain_map.count({node, f})) {
+                //                 gain_map[{node, f}] += fpgaMap[max_tf][nodes[node].fpga] - fpgaMap[max_tf][K] - fpgaMap[of][nodes[node].fpga] + fpgaMap[of][K];
+                //             }
+                //         }
+                //     }
+                // }
             }
         }
     }
@@ -91,10 +113,6 @@ void HyPar::k_way_localized_refine(int sel) {
         nodes[node].fpga = of;
         fpgas[of].nodes.insert(node);
         _fpga_add_force(of, node);
-        for (int net : nodes[node].nets) {
-            --nets[net].fpgas[tf];
-            ++nets[net].fpgas[of];
-        }
     }
 }
 
@@ -155,7 +173,7 @@ void HyPar::fast_k_way_localized_refine(int num, int sel) {
 }
 
 void HyPar::only_fast_k_way_localized_refine(int num, int sel) {
-    std::unordered_map<int, bool> node_locked;
+    // std::unordered_map<int, bool> node_locked;
     std::priority_queue<std::tuple<int, int, int>> gain_map; // (gain, node, fpga)
     std::unordered_set<int> active_nodes;
     for (int i = 0; i < num && !contract_memo.empty(); ++i) {
@@ -173,14 +191,14 @@ void HyPar::only_fast_k_way_localized_refine(int num, int sel) {
     while(!gain_map.empty()) {
         auto [max_gain, max_n, max_tf] = gain_map.top();
         gain_map.pop();
-        while (node_locked[max_n] && !gain_map.empty()) {
-            std::tie(max_gain, max_n, max_tf) = gain_map.top();
-            gain_map.pop();
-        }
-        if (gain_map.empty()) {
-            break;
-        }
-        gain_map.pop();
+        // while (node_locked[max_n] && !gain_map.empty()) {
+        //     std::tie(max_gain, max_n, max_tf) = gain_map.top();
+        //     gain_map.pop();
+        // }
+        // if (gain_map.empty()) {
+        //     break;
+        // }
+        // gain_map.pop();
         if (max_gain <= 0) {
             break;
         }
@@ -190,11 +208,16 @@ void HyPar::only_fast_k_way_localized_refine(int num, int sel) {
         nodes[max_n].fpga = max_tf;
         fpgas[max_tf].nodes.insert(max_n);
         _fpga_add_force(max_tf, max_n);
-        node_locked[max_n] = true;
+        for (int net : nodes[max_n].nets) {
+            --nets[net].fpgas[of];
+            ++nets[net].fpgas[max_tf];
+        }
+        // node_locked[max_n] = true;
+        // _cal_gain(max_n, max_tf, sel, gain_map);
     }
 }
 
-bool HyPar::refine_max_connectivity(int sel) {
+bool HyPar::refine_max_connectivity() {
     std::unordered_map<int, bool> node_locked;
     std::mt19937 rng = get_rng();
     std::priority_queue<std::tuple<int, int, int>> gain_map;
@@ -216,7 +239,7 @@ bool HyPar::refine_max_connectivity(int sel) {
         }
         auto &net = nets[netid];
         if (net.fpgas[f] < net.size) {
-            if (net.fpgas[f] > net.size / 2) {
+            if (net.fpgas[f] > net.size / 2 && fpgas[f].resValid) {
                 for (int i = 0; i < net.size; ++i) {
                     int u = net.nodes[i];
                     if (nodes[u].fpga != f) {
@@ -232,9 +255,13 @@ bool HyPar::refine_max_connectivity(int sel) {
                         }
                     }
                 }
+                net_locked[netid] = true;
                 fpgas[f].conn -= net.weight;
             } else {
                 int sf = nodes[net.source].fpga;
+                if (!fpgas[sf].resValid) {
+                    continue;
+                }
                 for (int i = 0; i < net.size; ++i) {
                     int u = net.nodes[i];
                     if (nodes[u].fpga != sf) {
@@ -250,6 +277,7 @@ bool HyPar::refine_max_connectivity(int sel) {
                         }
                     }
                 }
+                net_locked[netid] = true;
                 fpgas[f].conn -= net.weight;
             }
         }
@@ -258,56 +286,64 @@ bool HyPar::refine_max_connectivity(int sel) {
 }
 
 bool HyPar::refine_res_validity(int sel) {
-    std::unordered_map<int, bool> node_locked;
     std::mt19937 rng = get_rng();
     std::priority_queue<std::tuple<int, int, int>> gain_map;
+    bool flag = true;
     for (int f = 0; f < K; ++f) {
         if (fpgas[f].resValid) {
             continue;
         }
-        std::uniform_int_distribution<int> dis(0, fpgas[f].nodes.size() - 1);
-        auto it = fpgas[f].nodes.begin();
-        std::advance(it, dis(rng));
-        int s = *it;
-        int sf = nodes[s].fpga;
-        _cal_gain(s, sf, sel, gain_map);
-    }
-    if (gain_map.empty()) {
-        return true;
-    }
-    while (!gain_map.empty()) {
-        auto [max_gain, max_n, max_tf] = gain_map.top();
-        gain_map.pop();
-        while (node_locked[max_n] && !gain_map.empty()) {
-            std::tie(max_gain, max_n, max_tf) = gain_map.top();
-            gain_map.pop();
+        std::priority_queue<std::tuple<int, int, int>> gain_map;
+        flag = false;
+        int n = 0;
+        for (int i = 0; i < NUM_RES; ++i) {
+            n = std::max(n, static_cast<int>((fpgas[f].resUsed[i] - fpgas[f].resCap[i]) / mean_res[i]));
         }
-        if (gain_map.empty()) {
-            break;
-        }
-        node_locked[max_n] = true;
-        int of = nodes[max_n].fpga;
-        fpgas[of].nodes.erase(max_n);
-        _fpga_remove_force(of, max_n);
-        nodes[max_n].fpga = max_tf;
-        fpgas[max_tf].nodes.insert(max_n);
-        _fpga_add_force(max_tf, max_n);
-        for (int net : nodes[max_n].nets) {
-            --nets[net].fpgas[of];
-            ++nets[net].fpgas[max_tf];
+        std::vector<int> nodes_vec(fpgas[f].nodes.begin(), fpgas[f].nodes.end());
+        std::shuffle(nodes_vec.begin(), nodes_vec.end(), rng);
+        int ui = 0;
+        while (!fpgas[f].resValid && !fpgas[f].nodes.empty()) {
+            for(; ui < n && ui < nodes_vec.size(); ++ui) {
+                int u = nodes_vec[ui];
+                _cal_gain(u, f, sel, gain_map);
+            }
+            while (!gain_map.empty()) {
+                auto [max_gain, max_n, max_tf] = gain_map.top();
+                gain_map.pop();
+                if (max_gain <= 0) {
+                    break;
+                }
+                fpgas[f].nodes.erase(max_n);
+                _fpga_remove_force(f, max_n);
+                nodes[max_n].fpga = max_tf;
+                fpgas[max_tf].nodes.insert(max_n);
+                _fpga_add_force(max_tf, max_n);
+                for (int net : nodes[max_n].nets) {
+                    --nets[net].fpgas[f];
+                    ++nets[net].fpgas[max_tf];
+                }
+                if (fpgas[f].resValid) {
+                    break;
+                }
+            }
         }
     }
-    return false;
+    return flag;
 }
 
-bool HyPar::refine_max_hop(int sel) {
+// this leads to endless loop!
+bool HyPar::refine_max_hop() {
     bool flag = true;
     std::unordered_map<int, bool> node_locked;
-    for (const auto &net : nets) {
+    std::mt19937 rng = get_rng();
+    std::vector<int> nets_vec(nets.size());
+    std::iota(nets_vec.begin(), nets_vec.end(), 0);
+    std::shuffle(nets_vec.begin(), nets_vec.end(), rng);
+    for (int netid : nets_vec) {
+        auto &net = nets[netid];
         if (net.size == 1) {
             continue;
         }
-        std::unordered_set<int> active_nodes;
         int s = net.source;
         int sf = nodes[s].fpga;
         for (int i = 0; i < net.size; ++i) {
@@ -318,54 +354,42 @@ bool HyPar::refine_max_hop(int sel) {
             int vf = nodes[v].fpga;
             if (fpgaMap[sf][vf] > maxHop) {
                 flag = false;
-                if (!node_locked[s]) {
-                    active_nodes.insert(s);
-                }
                 if (!node_locked[v]) {
-                    active_nodes.insert(v);
-                }
-            }
-        }
-        if (active_nodes.empty()) {
-            continue;
-        }
-        std::priority_queue<std::tuple<int, int, int>> gain_map;
-        for (int node : active_nodes) {
-            _cal_gain(node, nodes[node].fpga, sel, gain_map);
-        }
-        auto [max_gain, max_n, max_tf] = gain_map.top();
-        gain_map.pop();
-        if (max_n == s) {
-            node_locked[s] = true;
-            fpgas[sf].nodes.erase(s);
-            _fpga_remove_force(sf, s);
-            nodes[s].fpga = max_tf;
-            fpgas[max_tf].nodes.insert(s);
-            _fpga_add_force(max_tf, s);
-            for (int net : nodes[s].nets) {
-                --nets[net].fpgas[sf];
-                ++nets[net].fpgas[max_tf];
-            }
-        } else {
-            while (!gain_map.empty()) {
-                auto [max_gain, max_n, max_tf] = gain_map.top();
-                gain_map.pop();
-                if (max_n == s || max_gain <= 0) {
-                    break;
-                }
-                node_locked[max_n] = true;
-                int of = nodes[max_n].fpga;
-                fpgas[of].nodes.erase(max_n);
-                _fpga_remove_force(of, max_n);
-                nodes[max_n].fpga = max_tf;
-                fpgas[max_tf].nodes.insert(max_n);
-                _fpga_add_force(max_tf, max_n);
-                for (int net : nodes[max_n].nets) {
-                    --nets[net].fpgas[of];
-                    ++nets[net].fpgas[max_tf];
-                }
-                if (max_n == s) {
-                    break;
+                    std::priority_queue<std::tuple<int, int, int>> gain_map;
+                    _cal_gain(v, vf, 2, gain_map);
+                    if (!gain_map.empty()) {
+                        node_locked[v] = true;
+                        auto [_, __, tf] = gain_map.top();
+                        fpgas[vf].nodes.erase(v);
+                        _fpga_remove_force(vf, v);
+                        nodes[v].fpga = tf;
+                        fpgas[tf].nodes.insert(v);
+                        _fpga_add_force(tf, v);
+                        for (int net : nodes[v].nets) {
+                            --nets[net].fpgas[vf];
+                            ++nets[net].fpgas[tf];
+                        }
+                        node_locked[v] = true;
+                        continue;
+                    }
+                } else if (!node_locked[s]) {
+                    std::priority_queue<std::tuple<int, int, int>> gain_map;
+                    _cal_gain(s, sf, 2, gain_map);
+                    if (!gain_map.empty()) {
+                        node_locked[s] = true;
+                        auto [_, __, tf] = gain_map.top();
+                        fpgas[sf].nodes.erase(s);
+                        _fpga_remove_force(sf, s);
+                        nodes[s].fpga = tf;
+                        fpgas[tf].nodes.insert(s);
+                        _fpga_add_force(tf, s);
+                        for (int net : nodes[s].nets) {
+                            --nets[net].fpgas[sf];
+                            ++nets[net].fpgas[tf];
+                        }
+                        node_locked[s] = true;
+                        break;
+                    }
                 }
             }
         }
@@ -373,73 +397,205 @@ bool HyPar::refine_max_hop(int sel) {
     return flag;
 }
 
+void HyPar::refine_random_one_node(int sel) {
+    std::mt19937 rng = get_rng();
+    std::vector<int> nodes_vec(existing_nodes.begin(), existing_nodes.end());
+    std::shuffle(nodes_vec.begin(), nodes_vec.end(), rng);
+    std::priority_queue<std::tuple<int, int, int>> gain_map;
+    for (int u : nodes_vec) {
+        int f = nodes[u].fpga;
+        _cal_gain(u, f, sel, gain_map);
+    }
+}
+
+void HyPar::force_connectivity_refine() {
+    std::vector<int> fpgaVec(K);
+    std::vector<double> fpgaConn(K);
+    std::iota(fpgaVec.begin(), fpgaVec.end(), 0);
+    for (int i = 0; i < K; ++i) {
+        fpgaConn[i] = double(fpgas[i].conn) / fpgas[i].maxConn;
+    }
+    std::sort(fpgaVec.begin(), fpgaVec.end(), [&](int a, int b) {
+        return fpgaConn[a] > fpgaConn[b];
+    });
+    int cnt;
+    for (int i = 0; i < K; ++i) {
+        if (fpgaConn[fpgaVec[i]] <= 1) {
+            cnt = i;
+            break;
+        }
+    }
+    for (int i = 0; i < cnt; ++i) {
+        int f = fpgaVec[i];
+        std::priority_queue<std::pair<int, int>> netQueue;
+        for (int net = 0; net < static_cast<int>(nets.size()); ++net) {
+            if (!nets[net].fpgas.count(f)) {
+                continue;
+            }
+            if (nodes[nets[net].source].fpga == f) {
+                netQueue.push({(nets[net].size - nets[net].fpgas[f]) * nets[net].weight, net});
+            } else {
+                netQueue.push({nets[net].fpgas[f] * nets[net].weight, net});
+            }
+        }
+        while (fpgas[f].conn > fpgas[f].maxConn || !netQueue.empty()) {
+            auto [_, net] = netQueue.top();
+            netQueue.pop();
+            if (fpgas[f].resValid) {
+                int of;
+                for (int j = 0; j < nets[net].size; ++j){
+                    int v = nets[net].nodes[j];
+                    if (nodes[v].fpga != f) {
+                        of = nodes[v].fpga;
+                        nodes[v].fpga = f;
+                        _fpga_add_force(fpgaVec[cnt], v);
+                        for (int net : nodes[v].nets) {
+                            --nets[net].fpgas[of];
+                            ++nets[net].fpgas[f];
+                        }
+                    }
+                }
+            } else {
+                for (int j = K - 1; j >= cnt; --j) {
+                    int tf = fpgaVec[j];
+                    if (fpgas[tf].resValid) {
+                        for (int k = 0; k < nets[net].size; ++k) {
+                            int v = nets[net].nodes[k];
+                            if (nodes[v].fpga == f) {
+                                nodes[v].fpga = tf;
+                                _fpga_add_force(fpgaVec[cnt], v);
+                                for (int net : nodes[v].nets) {
+                                    --nets[net].fpgas[f];
+                                    ++nets[net].fpgas[tf];
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+bool HyPar::force_validity_refine(int sel) {
+    std::unordered_set<int> invalid_fpgas;
+    std::unordered_map<int, bool> node_locked;
+    std::vector<double> fpgaRes(K, 0);
+    for (int i = 0; i < K; ++i) {
+        if (!fpgas[i].resValid) {
+            invalid_fpgas.insert(i);
+            for (int j = 0; j < NUM_RES; ++j) {
+                fpgaRes[i] += double(fpgas[i].resUsed[j]) / fpgas[i].resCap[j]; 
+            }
+        }
+    }
+    if (invalid_fpgas.empty()) {
+        return true;
+    }
+    std::vector<int> invalid_fpgaVec(invalid_fpgas.begin(), invalid_fpgas.end());
+    std::sort(invalid_fpgaVec.begin(), invalid_fpgaVec.end(), [&](int a, int b) {
+        return fpgaRes[a] > fpgaRes[b];
+    });
+    for (int f : invalid_fpgaVec) {
+        int n = 0;
+        for (int i = 0; i < NUM_RES; ++i) {
+            n = std::max(n, static_cast<int>((fpgas[f].resUsed[i] - fpgas[f].resCap[i]) / mean_res[i]) + 1);
+        }
+        std::mt19937 rng = get_rng();
+        for (int i = 0; i < n; ++i) {
+            std::uniform_int_distribution<int> dis(0, static_cast<int>(fpgas[f].nodes.size()) - 1);
+            int step = dis(rng);
+            auto it = fpgas[f].nodes.begin();
+            std::advance(it, step);
+            int u = *it;
+            if (node_locked[u]) {
+                --i;
+                continue;
+            }
+            node_locked[u] = true;
+            int max_gain = -INT_MAX, max_tf;
+            for (int tf = 0; tf < K; ++tf) {
+                if (tf == f || !fpgas[tf].resValid || !_fpga_add_try(tf, u)) {
+                    continue;
+                }
+                int gain = _gain_function(f, tf, u, sel);
+                if (gain > max_gain) {
+                    max_gain = gain;
+                    max_tf = tf;
+                }
+            }
+            fpgas[f].nodes.erase(u);
+            _fpga_remove_force(f, u);
+            nodes[u].fpga = max_tf;
+            fpgas[max_tf].nodes.insert(u);
+            _fpga_add_force(max_tf, u);
+            for (int net : nodes[u].nets) {
+                ++nets[net].fpgas[max_tf];
+                --nets[net].fpgas[f];
+            }
+        }
+    }
+    return false;
+}
+
 void HyPar::refine() {
+    int cnt = 0;
     while (!contract_memo.empty()) {
-        auto start = std::chrono::high_resolution_clock::now();
         k_way_localized_refine(2);
-        auto end = std::chrono::high_resolution_clock::now();
-        std::cout << "refine time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << std::endl;
     }
-    while (!refine_res_validity(1)) {
+    while (!_fpga_chk_res()) {
+        greedy_hypergraph_growth(2);
+    }
+    while (!refine_max_hop()) {
+        std::cout << "refine max hop" << std::endl;
         continue;
     }
-    while (!refine_max_hop(1)) {
-        continue;
+    while (_fpga_cal_conn(), !_fpga_chk_conn()) {
+        std::cout << "refine connectivity" << std::endl;
+        force_connectivity_refine();
     }
-    _fpga_cal_conn();
-    while (!refine_max_connectivity(1)) {
-        continue;
-    }
-    // @note: how to ensure the validity of the solution?
-    // Since the organizer declares that getting a valid solution is easy, we just randomly assign nodes to fpgas
+    evaluate_summary(std::cout);
 }
 
 void HyPar::fast_refine() {
+    int cnt = 0;
     while (!contract_memo.empty()) {
-        int num = std::log(existing_nodes.size());
-        std::cout << "refine num: " << num << std::endl;
-        auto start = std::chrono::high_resolution_clock::now();
-        fast_k_way_localized_refine(1, 1);
-        auto end = std::chrono::high_resolution_clock::now();
-        std::cout << "refine time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << std::endl;
+        k_way_localized_refine(1 + (cnt++) % 2);
     }
-    while (!refine_res_validity(1)) {
+    while (!_fpga_chk_res()) {
+        std::cout << "refine res" << std::endl;
+        force_validity_refine(2);
+    }
+    while (!refine_max_hop()) {
+        std::cout << "refine max hop" << std::endl;
         continue;
     }
-    while (!refine_max_hop(1)) {
-        continue;
+    while (_fpga_cal_conn(), !_fpga_chk_conn()) {
+        std::cout << "refine connectivity" << std::endl;
+        force_connectivity_refine();
     }
-    _fpga_cal_conn();
-    while (!refine_max_connectivity(1)) {
-        continue;
-    }
-    // @note: how to ensure the validity of the solution?
-    // Since the organizer declares that getting a valid solution is easy, we just randomly assign nodes to fpgas
+    evaluate_summary(std::cout);
 }
 
 void HyPar::only_fast_refine() {
-    auto start = std::chrono::high_resolution_clock::now();
-    only_fast_k_way_localized_refine(contract_memo.size(), 2);
-    auto end = std::chrono::high_resolution_clock::now();
-    std::cout << "refine time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << std::endl;
-    start = std::chrono::high_resolution_clock::now();
-    while (!refine_res_validity(1)) {
+    int cnt = 0;
+    while (!contract_memo.empty()) {
+        int num = std::log(existing_nodes.size());
+        only_fast_k_way_localized_refine(num, 2);
+        std::cout << "fast refine" << std::endl;
+    }
+    while (!_fpga_chk_res()) {
+        std::cout << "refine res" << std::endl;
+        force_validity_refine(2);
+    }
+    while (!refine_max_hop()) {
+        std::cout << "refine max hop" << std::endl;
         continue;
     }
-    end = std::chrono::high_resolution_clock::now();
-    std::cout << "validity time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << std::endl;
-    start = std::chrono::high_resolution_clock::now();
-    while (!refine_max_hop(1)) {
-        continue;
+    while (_fpga_cal_conn(), !_fpga_chk_conn()) {
+        std::cout << "refine connectivity" << std::endl;
+        force_connectivity_refine();
     }
-    end = std::chrono::high_resolution_clock::now();
-    std::cout << "max hop time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << std::endl;
-    start = std::chrono::high_resolution_clock::now();
-    _fpga_cal_conn();
-    while (!refine_max_connectivity(1)) {
-        continue;
-    }
-    end = std::chrono::high_resolution_clock::now();
-    // @note: how to ensure the validity of the solution?
-    // Since the organizer declares that getting a valid solution is easy, we just randomly assign nodes to fpgas
+    evaluate_summary(std::cout);
 }

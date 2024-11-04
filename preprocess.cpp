@@ -346,27 +346,27 @@ void HyPar::preprocess() {
         existing_nodes.insert(i);
     }
     int max_size = community_detect();
-    int c_min = static_cast<int>(std::ceil(double(max_size) / (10)));
-    int c_max = static_cast<int>(std::ceil(double(nodes.size()) / (K * parameter_t)));
-    std::unordered_set<int> another_community;
-    for (size_t i = 0; i < communities.size(); ++i) {
-        if (static_cast<int>(communities[i].size()) <= c_min) {
-            contract_in_community(i);
-        }
-        else {
-            fast_pin_sparsify_in_community(i, c_min, c_max);
-        }
-    }
-    for (auto it = communities.begin(); it != communities.end();) {
-        if (it->size() == 1) {
-            another_community.insert(*it->begin());
-            it = communities.erase(it);
-        } else {
-            ++it;
-        }
-    }
-    communities.emplace_back(another_community);
-    fast_pin_sparsify_in_community(communities.size() - 1, c_min, c_max);
+    // int c_min = static_cast<int>(std::ceil(double(max_size) / (10)));
+    // int c_max = static_cast<int>(std::ceil(double(nodes.size()) / (K * parameter_t)));
+    // std::unordered_set<int> another_community;
+    // for (size_t i = 0; i < communities.size(); ++i) {
+    //     if (static_cast<int>(communities[i].size()) <= c_min) {
+    //         contract_in_community(i);
+    //     }
+    //     else {
+    //         fast_pin_sparsify_in_community(i, c_min, c_max);
+    //     }
+    // }
+    // for (auto it = communities.begin(); it != communities.end();) {
+    //     if (it->size() == 1) {
+    //         another_community.insert(*it->begin());
+    //         it = communities.erase(it);
+    //     } else {
+    //         ++it;
+    //     }
+    // }
+    // communities.emplace_back(another_community);
+    // fast_pin_sparsify_in_community(communities.size() - 1, c_min, c_max);
     for (size_t i = 0; i < communities.size(); ++i) {
         for (int u : communities[i]) {
             node2community[u] = i;

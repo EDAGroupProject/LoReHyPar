@@ -41,7 +41,7 @@ struct Node {
     int size{1};
     int fp{};
     std::vector<int> reps{};
-    std::set<int> nets{};
+    std::unordered_set<int> nets{};
     std::unordered_map<int, bool> isSou{};
 };
 
@@ -60,7 +60,6 @@ struct Fpga {
     double resCap[NUM_RES]{}, resUsed[NUM_RES]{};
     bool resValid{true}; // update after add or remove a node
     std::unordered_set<int> nodes{};
-    std::vector<int> neighbors{};
 };
 
 class HyPar {
@@ -83,6 +82,7 @@ private:
     std::stack<std::pair<int, int>> contract_memo;
     // std::unordered_map<int, int> netFp;
     double ceil_rescap[NUM_RES]{}, ceil_size{};
+    double mean_res[NUM_RES]{};
 
     // basic operations
     void _contract(int u, int v);   // contract v into u
@@ -94,7 +94,6 @@ private:
     // void _detect_para_singv_net(); // detect and remove parallel nets or single vertex nets
     bool _contract_eligible(int u, int v); // check if u and v are eligible to be contracted
     bool _fpga_add_try(int f, int u);
-    bool _fpga_add_try_nochange(int f, int u);
     bool _fpga_add_force(int f, int u);
     bool _fpga_remove_force(int f, int u);
     long long _fpga_cal_conn();
@@ -106,12 +105,16 @@ private:
     int _connectivity_gain(int of, int tf, int u);
     int _gain_function(int of, int tf, int u, int sel = 0);
     void _cal_inpar_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
+    void _cal_refine_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
     void _max_net_gain(std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
     void _FM_gain(int of, std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
     void _hop_gain(int of, std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
     void _connectivity_gain(int of, std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
     void _gain_function(int of, std::unordered_set<int> &tf, int u, int sel, std::unordered_map<int, int> &gain_map);
     void _cal_gain(int u, int f, int sel, std::priority_queue<std::tuple<int, int, int>> &gain_map);
+    void _get_eligible_fpga(int u, std::unordered_set<int> &toFpga);
+    void _get_eligible_fpga(int u, std::unordered_map<int, bool> &toFpga);
+    bool _chk_legel_put();
 
 public:
     HyPar() = default;
@@ -168,9 +171,12 @@ public:
     void k_way_localized_refine(int sel);
     void fast_k_way_localized_refine(int num, int sel);
     void only_fast_k_way_localized_refine(int num, int sel);
-    bool refine_max_connectivity(int sel);
+    bool refine_max_connectivity();
     bool refine_res_validity(int sel);
-    bool refine_max_hop(int sel);
+    bool refine_max_hop();
+    void refine_random_one_node(int sel);
+    void force_connectivity_refine();
+    bool force_validity_refine(int sel = 0);
         
     // Replication
     // @todo: the implementation of the replication
@@ -188,7 +194,6 @@ public:
     // @warning: this is a very important part, we should implement this in the future
 
     void run();
-    void fast_run();
     void evaluate_summary(std::ostream &out);
     void evaluate(bool &valid, long long &hop);
 };

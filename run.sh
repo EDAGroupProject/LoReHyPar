@@ -3,13 +3,12 @@ set -e
 mkdir -p build
 cd build
 cmake ../
-make clean
 make
 
 if [ $? -eq 0 ]; then
     echo "Build succeeded."
-    # ./partitioner -s ../testcase/sample01 -t ../testcase/sample01/design.fpga.out
-    ./partitioner -s ../testcase/case01 -t ../testcase/case01/design.fpga.out
+    # ./partitioner -t ../testcase/sample01 -s ../testcase/sample01/design.fpga.out
+    ./partitioner -t ../testcase/case03 -s ../testcase/case03/design.fpga.out
     if [ $? -eq 0 ]; then
         echo "Test succeeded."
     else
