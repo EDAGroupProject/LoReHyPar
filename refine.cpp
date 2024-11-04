@@ -346,12 +346,26 @@ bool HyPar::refine_max_hop() {
         }
         int s = net.source;
         int sf = nodes[s].fpga;
+
+        // Debugging output to check the value of s and sf
+        std::cout << "Processing net with source node: " << s << ", sf: " << sf << std::endl;
+
         for (int i = 0; i < net.size; ++i) {
             int v = net.nodes[i];
             if (v == s) {
                 continue;
             }
             int vf = nodes[v].fpga;
+
+            // Debugging output to check the values of v and vf
+            std::cout << "Processing node: " << v << ", vf: " << vf << std::endl;
+
+            // Boundary check to ensure sf and vf are within the valid range
+            if (sf < 0 || sf >= fpgaMap.size() || vf < 0 || vf >= fpgaMap[sf].size()) {
+                std::cerr << "Error: sf or vf out of bounds. sf: " << sf << ", vf: " << vf << std::endl;
+                continue;
+            }
+
             if (fpgaMap[sf][vf] > maxHop) {
                 flag = false;
                 if (!node_locked[v]) {

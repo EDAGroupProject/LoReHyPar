@@ -869,6 +869,8 @@ void HyPar::evaluate(bool &valid, long long &hop) {
     }
 }
 
+
+
 void HyPar::run() {
     if (nodes.size() < 1e4) {
         preprocess();
