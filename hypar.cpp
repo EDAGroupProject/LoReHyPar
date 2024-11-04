@@ -772,6 +772,8 @@ void HyPar::evaluate(bool &valid, long long &hop) {
     }
 }
 
+
+
 void HyPar::run() {
     if (nodes.size() >= 1e6){
         fast_run();
@@ -787,18 +789,62 @@ void HyPar::run() {
 
 void HyPar::fast_run() {
     auto start = std::chrono::high_resolution_clock::now();
-    preprocess();
+
+    // Check if a saved preprocess file exists
+    std::ifstream inFile("preprocess.txt");
+    if (inFile.good()) {
+        loadPreprocessResultsAsText("preprocess.txt");
+    } else {
+        preprocess();
+        savePreprocessResultsAsText("preprocess.txt");
+    }
+
     auto end = std::chrono::high_resolution_clock::now();
-    std::cout  << "Preprocess time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
-    coarsen();
+    std::cout << "Preprocess time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
+
+    std::ifstream inFile2("coarsen.txt");
+    if (inFile2.good()) {
+        loadCoarsenResultsAsText("coarsen.txt");
+    } else {
+        coarsen();
+        saveCoarsenResultsAsText("coarsen.txt");
+    }
+
     end = std::chrono::high_resolution_clock::now();
     std::cout << "Coarsen time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
-    SCLa_propagation();
+
+    std::ifstream inFile3("initial_partition.txt");
+    if (inFile3.good()) {
+        loadPartitionResultsAsText("initial_partition.txt");
+    } else {
+        SCLa_propagation();
+        savePartitionResultsAsText("initial_partition.txt");
+    }
+
     end = std::chrono::high_resolution_clock::now();
     std::cout << "Initial partition time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
-    only_fast_refine();
+
+    // Output the fpga values of nodes after initial partition
+    std::cout << "Nodes' FPGA values after initial partition:" << std::endl;
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        std::cout << "Node " << i << ": FPGA " << nodes[i].fpga << std::endl;
+    }
+
+    std::ifstream inFile4("refine.txt");
+    if (inFile4.good()) {
+        loadRefineResultsAsText("refine.txt");
+    } else {
+        only_fast_refine();
+        saveRefineResultsAsText("refine.txt");
+    }
+
     end = std::chrono::high_resolution_clock::now();
     std::cout << "Refine time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
+
+    // Proceed to the next steps
+    // coarsen();
+    // SCLa_propagation();
+    // only_fast_refine();
     // std::ofstream out(outputFile);
     // printOut(out);
 }

@@ -113,6 +113,25 @@ private:
     void _gain_function(int of, std::unordered_set<int> &tf, int u, int sel, std::unordered_map<int, int> &gain_map);
     void _cal_gain(int u, int f, int sel, std::priority_queue<std::tuple<int, int, int>> &gain_map);
 
+
+    // fastdebug
+    void savePreprocessResults(const std::string &filename);
+    void loadPreprocessResults(const std::string &filename);
+    void savePreprocessResultsAsText(const std::string &filename);
+    void loadPreprocessResultsAsText(const std::string &filename);
+    void saveCoarsenResults(const std::string &filename);
+    void loadCoarsenResults(const std::string &filename);
+    void saveCoarsenResultsAsText(const std::string &filename);
+    void loadCoarsenResultsAsText(const std::string &filename);
+    void savePartitionResults(const std::string &filename);
+    void loadPartitionResults(const std::string &filename);
+    void savePartitionResultsAsText(const std::string &filename);
+    void loadPartitionResultsAsText(const std::string &filename);
+    void saveRefineResults(const std::string &filename);
+    void loadRefineResults(const std::string &filename);
+    void saveRefineResultsAsText(const std::string &filename);
+    void loadRefineResultsAsText(const std::string &filename);
+
 public:
     HyPar() = default;
     HyPar(std::string _inputDir, std::string _outputFile);

@@ -1,0 +1,28 @@
+Existing Nodes: 16
+15 14 13 0 1 2 3 4 5 6 7 8 9 10 11 12 
+Deleted Nodes: 0
+
+Communities: 6
+Community 0 (Size: 3): 0 1 4 
+Community 1 (Size: 3): 15 14 3 
+Community 2 (Size: 2): 2 7 
+Community 3 (Size: 4): 5 8 6 10 
+Community 4 (Size: 4): 11 12 13 9 
+Community 5 (Size: 0): 
+Node to Community Map: 16
+Node 9 -> Community 4
+Node 13 -> Community 4
+Node 12 -> Community 4
+Node 0 -> Community 0
+Node 1 -> Community 0
+Node 14 -> Community 1
+Node 4 -> Community 0
+Node 15 -> Community 1
+Node 2 -> Community 2
+Node 3 -> Community 1
+Node 7 -> Community 2
+Node 5 -> Community 3
+Node 8 -> Community 3
+Node 6 -> Community 3
+Node 10 -> Community 3
+Node 11 -> Community 4

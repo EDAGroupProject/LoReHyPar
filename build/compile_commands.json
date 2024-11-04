@@ -1,0 +1,92 @@
+[
+{
+  "directory": "/home/ubuntu/LoReHyPar/build",
+  "command": "/usr/bin/g++  -I/home/ubuntu/LoReHyPar/PUBLIC -I/home/ubuntu/LoReHyPar  -O0 -Wall -Wextra -ggdb3 -DDEBUG -std=gnu++17 -o CMakeFiles/LSHConstantsGen.dir/LSHConstantsGen.cpp.o -c /home/ubuntu/LoReHyPar/LSHConstantsGen.cpp",
+  "file": "/home/ubuntu/LoReHyPar/LSHConstantsGen.cpp",
+  "output": "CMakeFiles/LSHConstantsGen.dir/LSHConstantsGen.cpp.o"
+},
+{
+  "directory": "/home/ubuntu/LoReHyPar/build",
+  "command": "/usr/bin/g++  -I/home/ubuntu/LoReHyPar/PUBLIC -I/home/ubuntu/LoReHyPar  -O0 -Wall -Wextra -ggdb3 -DDEBUG -std=gnu++17 -o CMakeFiles/LoReHyPar.dir/hypar.cpp.o -c /home/ubuntu/LoReHyPar/hypar.cpp",
+  "file": "/home/ubuntu/LoReHyPar/hypar.cpp",
+  "output": "CMakeFiles/LoReHyPar.dir/hypar.cpp.o"
+},
+{
+  "directory": "/home/ubuntu/LoReHyPar/build",
+  "command": "/usr/bin/g++  -I/home/ubuntu/LoReHyPar/PUBLIC -I/home/ubuntu/LoReHyPar  -O0 -Wall -Wextra -ggdb3 -DDEBUG -std=gnu++17 -o CMakeFiles/LoReHyPar.dir/preprocess.cpp.o -c /home/ubuntu/LoReHyPar/preprocess.cpp",
+  "file": "/home/ubuntu/LoReHyPar/preprocess.cpp",
+  "output": "CMakeFiles/LoReHyPar.dir/preprocess.cpp.o"
+},
+{
+  "directory": "/home/ubuntu/LoReHyPar/build",
+  "command": "/usr/bin/g++  -I/home/ubuntu/LoReHyPar/PUBLIC -I/home/ubuntu/LoReHyPar  -O0 -Wall -Wextra -ggdb3 -DDEBUG -std=gnu++17 -o CMakeFiles/LoReHyPar.dir/coarsen.cpp.o -c /home/ubuntu/LoReHyPar/coarsen.cpp",
+  "file": "/home/ubuntu/LoReHyPar/coarsen.cpp",
+  "output": "CMakeFiles/LoReHyPar.dir/coarsen.cpp.o"
+},
+{
+  "directory": "/home/ubuntu/LoReHyPar/build",
+  "command": "/usr/bin/g++  -I/home/ubuntu/LoReHyPar/PUBLIC -I/home/ubuntu/LoReHyPar  -O0 -Wall -Wextra -ggdb3 -DDEBUG -std=gnu++17 -o CMakeFiles/LoReHyPar.dir/initialpar.cpp.o -c /home/ubuntu/LoReHyPar/initialpar.cpp",
+  "file": "/home/ubuntu/LoReHyPar/initialpar.cpp",
+  "output": "CMakeFiles/LoReHyPar.dir/initialpar.cpp.o"
+},
+{
+  "directory": "/home/ubuntu/LoReHyPar/build",
+  "command": "/usr/bin/g++  -I/home/ubuntu/LoReHyPar/PUBLIC -I/home/ubuntu/LoReHyPar  -O0 -Wall -Wextra -ggdb3 -DDEBUG -std=gnu++17 -o CMakeFiles/LoReHyPar.dir/refine.cpp.o -c /home/ubuntu/LoReHyPar/refine.cpp",
+  "file": "/home/ubuntu/LoReHyPar/refine.cpp",
+  "output": "CMakeFiles/LoReHyPar.dir/refine.cpp.o"
+},
+{
+  "directory": "/home/ubuntu/LoReHyPar/build",
+  "command": "/usr/bin/g++  -I/home/ubuntu/LoReHyPar/PUBLIC -I/home/ubuntu/LoReHyPar  -O0 -Wall -Wextra -ggdb3 -DDEBUG -std=gnu++17 -o CMakeFiles/LoReHyPar.dir/savepreprocess.cpp.o -c /home/ubuntu/LoReHyPar/savepreprocess.cpp",
+  "file": "/home/ubuntu/LoReHyPar/savepreprocess.cpp",
+  "output": "CMakeFiles/LoReHyPar.dir/savepreprocess.cpp.o"
+},
+{
+  "directory": "/home/ubuntu/LoReHyPar/build",
+  "command": "/usr/bin/g++  -I/home/ubuntu/LoReHyPar/PUBLIC -I/home/ubuntu/LoReHyPar  -O0 -Wall -Wextra -ggdb3 -DDEBUG -std=gnu++17 -o CMakeFiles/LoReHyPar.dir/savecoarsen.cpp.o -c /home/ubuntu/LoReHyPar/savecoarsen.cpp",
+  "file": "/home/ubuntu/LoReHyPar/savecoarsen.cpp",
+  "output": "CMakeFiles/LoReHyPar.dir/savecoarsen.cpp.o"
+},
+{
+  "directory": "/home/ubuntu/LoReHyPar/build",
+  "command": "/usr/bin/g++  -I/home/ubuntu/LoReHyPar/PUBLIC -I/home/ubuntu/LoReHyPar  -O0 -Wall -Wextra -ggdb3 -DDEBUG -std=gnu++17 -o CMakeFiles/LoReHyPar.dir/saveinitialpar.cpp.o -c /home/ubuntu/LoReHyPar/saveinitialpar.cpp",
+  "file": "/home/ubuntu/LoReHyPar/saveinitialpar.cpp",
+  "output": "CMakeFiles/LoReHyPar.dir/saveinitialpar.cpp.o"
+},
+{
+  "directory": "/home/ubuntu/LoReHyPar/build",
+  "command": "/usr/bin/g++  -I/home/ubuntu/LoReHyPar/PUBLIC -I/home/ubuntu/LoReHyPar  -O0 -Wall -Wextra -ggdb3 -DDEBUG -std=gnu++17 -o CMakeFiles/LoReHyPar.dir/saverefine.cpp.o -c /home/ubuntu/LoReHyPar/saverefine.cpp",
+  "file": "/home/ubuntu/LoReHyPar/saverefine.cpp",
+  "output": "CMakeFiles/LoReHyPar.dir/saverefine.cpp.o"
+},
+{
+  "directory": "/home/ubuntu/LoReHyPar/build",
+  "command": "/usr/bin/g++  -I/home/ubuntu/LoReHyPar/PUBLIC -I/home/ubuntu/LoReHyPar  -O0 -Wall -Wextra -ggdb3 -DDEBUG -std=gnu++17 -o CMakeFiles/LoReHyPar.dir/fastpreprocess.cpp.o -c /home/ubuntu/LoReHyPar/fastpreprocess.cpp",
+  "file": "/home/ubuntu/LoReHyPar/fastpreprocess.cpp",
+  "output": "CMakeFiles/LoReHyPar.dir/fastpreprocess.cpp.o"
+},
+{
+  "directory": "/home/ubuntu/LoReHyPar/build",
+  "command": "/usr/bin/g++  -I/home/ubuntu/LoReHyPar/PUBLIC -I/home/ubuntu/LoReHyPar  -O0 -Wall -Wextra -ggdb3 -DDEBUG -std=gnu++17 -o CMakeFiles/LoReHyPar.dir/fastcoarsen.cpp.o -c /home/ubuntu/LoReHyPar/fastcoarsen.cpp",
+  "file": "/home/ubuntu/LoReHyPar/fastcoarsen.cpp",
+  "output": "CMakeFiles/LoReHyPar.dir/fastcoarsen.cpp.o"
+},
+{
+  "directory": "/home/ubuntu/LoReHyPar/build",
+  "command": "/usr/bin/g++  -I/home/ubuntu/LoReHyPar/PUBLIC -I/home/ubuntu/LoReHyPar  -O0 -Wall -Wextra -ggdb3 -DDEBUG -std=gnu++17 -o CMakeFiles/LoReHyPar.dir/fastrefine.cpp.o -c /home/ubuntu/LoReHyPar/fastrefine.cpp",
+  "file": "/home/ubuntu/LoReHyPar/fastrefine.cpp",
+  "output": "CMakeFiles/LoReHyPar.dir/fastrefine.cpp.o"
+},
+{
+  "directory": "/home/ubuntu/LoReHyPar/build",
+  "command": "/usr/bin/g++  -I/home/ubuntu/LoReHyPar/PUBLIC -I/home/ubuntu/LoReHyPar  -O0 -Wall -Wextra -ggdb3 -DDEBUG -std=gnu++17 -o CMakeFiles/partitioner.dir/main.cpp.o -c /home/ubuntu/LoReHyPar/main.cpp",
+  "file": "/home/ubuntu/LoReHyPar/main.cpp",
+  "output": "CMakeFiles/partitioner.dir/main.cpp.o"
+},
+{
+  "directory": "/home/ubuntu/LoReHyPar/build",
+  "command": "/usr/bin/g++  -I/home/ubuntu/LoReHyPar/PUBLIC -I/home/ubuntu/LoReHyPar  -O0 -Wall -Wextra -ggdb3 -DDEBUG -std=gnu++17 -o CMakeFiles/test.dir/test.cpp.o -c /home/ubuntu/LoReHyPar/test.cpp",
+  "file": "/home/ubuntu/LoReHyPar/test.cpp",
+  "output": "CMakeFiles/test.dir/test.cpp.o"
+}
+]

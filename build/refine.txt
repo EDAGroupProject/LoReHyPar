@@ -1,0 +1,18 @@
+Contract Memo Stack: 0
+Node States: 16
+FPGA: 0 Nets: 2 0 6 
+FPGA: 0 Nets: 4 0 1 4 7 
+FPGA: 1 Nets: 3 2 4 11 
+FPGA: 0 Nets: 4 1 2 3 4 
+FPGA: 0 Nets: 4 1 2 9 10 
+FPGA: 0 Nets: 3 4 5 9 
+FPGA: 1 Nets: 2 4 10 
+FPGA: 0 Nets: 2 2 5 
+FPGA: 2 Nets: 6 3 6 7 8 9 10 
+FPGA: 0 Nets: 3 3 5 10 
+FPGA: 0 Nets: 1 9 
+FPGA: 0 Nets: 2 8 10 
+FPGA: 1 Nets: 1 11 
+FPGA: 2 Nets: 1 10 
+FPGA: 0 Nets: 2 10 12 
+FPGA: 0 Nets: 2 11 12 
