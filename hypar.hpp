@@ -129,6 +129,7 @@ public:
 
     void printSummary(std::ostream &out);
     void printSummary(std::ofstream &out);
+    void printOut();
     void printOut(std::ofstream &out);
 
     // Preprocessing
@@ -194,7 +195,10 @@ public:
     // @warning: this is a very important part, we should implement this in the future
 
     void run();
+    void run_after_coarsen();
+    void run_after_coarsen(bool &valid, long long &hop);
     void evaluate_summary(std::ostream &out);
+    void evaluate_summary(bool &valid, long long &hop, std::ostream &out);
     void evaluate(bool &valid, long long &hop);
 };
 

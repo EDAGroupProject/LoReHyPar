@@ -8,7 +8,7 @@ make
 if [ $? -eq 0 ]; then
     echo "Build succeeded."
     # ./partitioner -t ../testcase/sample01 -s ../testcase/sample01/design.fpga.out
-    ./partitioner -t ../testcase/case03 -s ../testcase/case03/design.fpga.out
+    ./partitioner -t ../testcase/case01 -s ../testcase/case01/design.fpga.out
     if [ $? -eq 0 ]; then
         echo "Test succeeded."
     else

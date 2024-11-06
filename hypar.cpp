@@ -220,6 +220,11 @@ void HyPar::printSummary(std::ofstream &out) {
     }
 }
 
+void HyPar::printOut() {
+    std::ofstream out(outputFile);
+    printOut(out);
+}
+
 void HyPar::printOut(std::ofstream &out) {
     for (auto &fpga: fpgas) {
         out << fpga.name << ": ";
@@ -809,6 +814,44 @@ bool HyPar::_chk_legel_put() {
     return true;
 }
 
+void HyPar::evaluate_summary(bool &valid, long long &hop, std::ostream &out) {
+    _fpga_cal_conn();
+    valid = true;
+    for (auto &fpga : fpgas) {
+        if (fpga.resValid && fpga.conn <= fpga.maxConn) {
+            out << "Valid FPGA: " << fpga.name << std::endl;
+        } else {
+            valid = false;
+            out << "Invalid FPGA: " << fpga.name << std::endl;
+            for (int i = 0; i < NUM_RES; ++i) {
+                if (fpga.resUsed[i] > fpga.resCap[i]) {
+                    out << "Resource " << i << " exceeds the capacity: " << fpga.resUsed[i] << " > " << fpga.resCap[i] << std::endl;
+                }
+            }
+            if (fpga.conn > fpga.maxConn) {
+                out << "Connection exceeds the capacity: " << fpga.conn << " > " << fpga.maxConn << std::endl;
+            }
+        }
+    }
+    hop = 0;
+    for (auto &net : nets) {
+        int source = net.source;
+        int sf = nodes[source].fpga;
+        for (auto [f, cnt] : net.fpgas) {
+            if (!cnt || f == sf) {
+                continue;
+            }
+            if (fpgaMap[sf][f] > maxHop) {
+                valid = false;
+                out << "Errors happens between " << nodes[source].name << " and " << fpgas[f].name <<"  No path between " << sf << " and " << f << std::endl;
+            } else {
+                hop += net.weight * fpgaMap[sf][f];
+            }
+        }
+    }
+    out << "Total Hop: " << hop << std::endl;
+}
+
 void HyPar::evaluate_summary(std::ostream &out) {
     _fpga_cal_conn();
     for (auto &fpga : fpgas) {
@@ -886,6 +929,39 @@ void HyPar::run() {
         fast_initial_partition();
         only_fast_refine();
     }
-    std::ofstream out(outputFile);
-    printOut(out);
+    evaluate_summary(std::cout);
+    // std::ofstream out(outputFile);
+    // printOut(out);
+}
+
+void HyPar::run_after_coarsen() {
+    if (nodes.size() < 1e4) {
+        initial_partition();
+        refine();
+    } else if (nodes.size() < 1e5) {
+        fast_initial_partition();
+        fast_refine();
+    } else {
+        fast_initial_partition();
+        only_fast_refine();
+    }
+    evaluate_summary(std::cout);
+    // std::ofstream out(outputFile);
+    // printOut(out);
+}
+
+void HyPar::run_after_coarsen(bool &valid, long long &hop) {
+    if (nodes.size() < 1e4) {
+        initial_partition();
+        refine();
+    } else if (nodes.size() < 1e5) {
+        fast_initial_partition();
+        fast_refine();
+    } else {
+        fast_initial_partition();
+        only_fast_refine();
+    }
+    evaluate_summary(valid, hop, std::cout);
+    // std::ofstream out(outputFile);
+    // printOut(out);
 }
