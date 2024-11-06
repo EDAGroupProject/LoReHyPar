@@ -104,8 +104,7 @@ private:
     int _hop_gain(int of, int tf, int u);
     int _connectivity_gain(int of, int tf, int u);
     int _gain_function(int of, int tf, int u, int sel = 0);
-    void _cal_inpar_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
-    void _cal_refine_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
+    void _cal_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
     void _max_net_gain(std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
     void _FM_gain(int of, std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
     void _hop_gain(int of, std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
@@ -143,7 +142,6 @@ public:
     void contract_in_community(int community);
     void contract_in_community(const std::unordered_set<int> &community, std::unordered_set<int> &active_nodes);
     void recursive_community_contract();
-    void preprocess_for_next_round();
 
     // Coarsening
     void coarsen();
@@ -178,21 +176,6 @@ public:
     void refine_random_one_node(int sel);
     void force_connectivity_refine();
     bool force_validity_refine(int sel = 0);
-        
-    // Replication
-    // @todo: the implementation of the replication
-
-    // Multi-thread
-    // @todo: i have include the boost library, in the future, we can use it to implement multi-threading
-    
-    // Flow-cutter
-    // @todo: maybe use the flow-cutter to refine the partition
-
-    // Memetic Algorithm
-    // @todo: implement the memetic algorithm to the whole framework
-
-    // Incremental Update or Data Cache
-    // @warning: this is a very important part, we should implement this in the future
 
     void run();
     void run_after_coarsen();

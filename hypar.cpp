@@ -305,6 +305,8 @@ void HyPar::_uncontract(int u, int v) {
 void HyPar::_uncontract(int u, int v, int f) {
     contract_memo.pop();
     nodes[u].size -= nodes[v].size;
+    nodes[v].fpga = f;
+    fpgas[f].nodes.insert(v);
     existing_nodes.insert(v);
     deleted_nodes.erase(v);
     for (int i = 0; i < NUM_RES; ++i) {
@@ -579,19 +581,7 @@ int HyPar::_gain_function(int of, int tf, int u, int sel){
     }
 }
 
-void HyPar::_cal_inpar_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map){
-    std::unordered_map<int, bool> toFpga;
-    _get_eligible_fpga(u, toFpga);
-    for (int tf = 0; tf < K; ++tf) {
-        if (toFpga[tf]) {
-            gain_map[{u, tf}] = _gain_function(f, tf, u, sel);
-        } else if (gain_map.count({u, tf})) {
-            gain_map.erase({u, tf});
-        }
-    }
-}
-
-void HyPar::_cal_refine_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map) {
+void HyPar::_cal_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map){
     std::unordered_map<int, bool> toFpga;
     _get_eligible_fpga(u, toFpga);
     for (int tf = 0; tf < K; ++tf) {
@@ -724,18 +714,17 @@ void HyPar::_cal_gain(int u, int f, int sel, std::priority_queue<std::tuple<int,
 }
 
 void HyPar::_get_eligible_fpga(int u, std::unordered_set<int> &tfs) {
-    for (int i = 0; i < K; ++i) {
-        if (_fpga_add_try(i, u)) {
-            tfs.insert(i);
+    int uf = nodes[u].fpga;
+    for (int f = 0; f < K; ++f) {
+        if (f != uf && _fpga_add_try(f, u)) {
+            tfs.insert(f);
         }
     }
-    int uf = nodes[u].fpga;
-    tfs.erase(uf);
     for (int net : nodes[u].nets) {
         int s = nets[net].source;
         if (s == u) {
             for (auto [f, cnt] : nets[net].fpgas) {
-                if (cnt == 0 || f == uf) {
+                if (cnt == 0 || (f == uf && nets[net].fpgas[f] == 1)) {
                     continue;
                 }
                 for (auto it = tfs.begin(); it != tfs.end();) {
@@ -765,20 +754,19 @@ void HyPar::_get_eligible_fpga(int u, std::unordered_set<int> &tfs) {
 }
 
 void HyPar::_get_eligible_fpga(int u, std::unordered_map<int, bool> &tfs) {
-    for (int i = 0; i < K; ++i) {
-        if (_fpga_add_try(i, u)) {
-            tfs[i] = true;
+    int uf = nodes[u].fpga;
+    for (int f = 0; f < K; ++f) {
+        if (f != uf && _fpga_add_try(f, u)) {
+            tfs[f] = true;
         } else {
-            tfs[i] = false;
+            tfs[f] = false;
         }
     }
-    int uf = nodes[u].fpga;
-    tfs.erase(uf);
     for (int net : nodes[u].nets) {
         int s = nets[net].source;
         if (s == u) {
             for (auto [f, cnt] : nets[net].fpgas) {
-                if (cnt == 0 || f == uf) {
+                if (cnt == 0 || (f == uf && nets[net].fpgas[f] == 1)) {
                     continue;
                 }
                 for (int tf = 0; tf < K; ++tf) {

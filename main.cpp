@@ -30,30 +30,36 @@ int main(int argc, char **argv) {
         std::cerr << "Usage: " << argv[0] << " -t <input directory> -s <output file>" << std::endl;
         return 1;
     }
-    HyPar hp[4];
-    hp[0] = std::move(HyPar(inputDir, outputFile));
-    hp[0].preprocess();
-    hp[0].coarsen();
-    hp[1] = hp[0];
-    hp[2] = hp[0];
-    hp[3] = hp[0];
+    HyPar hp(inputDir, outputFile);
+    HyPar hp_mt[4];
+    hp.preprocess();
+    hp.coarsen();
     std::thread threads[4];
     bool valid[4], bestvalid = false;
     long long hop[4], besthop = __LONG_LONG_MAX__;
     int bestid = -1;
-    for (int i = 0; i < 4; ++i) {
-        threads[i] = std::thread(run, std::ref(hp[i]), std::ref(valid[i]), std::ref(hop[i]));
-    }
-    std::cout << "Waiting for threads to finish..." << std::endl;
-    for (int i = 0; i < 4; ++i) {
-        std::cout << "Thread " << i << " finished." << std::endl;
-        threads[i].join();
-        if (bestvalid <= valid[i] && hop[i] < besthop) {
-            bestid = i;
-            besthop = hop[i];
-            bestvalid = valid[i];
+    while (!bestvalid) {
+        std::cout << "Starting threads..." << std::endl;
+        bestvalid = false;
+        besthop = __LONG_LONG_MAX__;
+        for (int i = 0; i < 4; ++i) {
+            hp_mt[i] = hp;
+        }
+        for (int i = 0; i < 4; ++i) {
+            threads[i] = std::thread(run, std::ref(hp_mt[i]), std::ref(valid[i]), std::ref(hop[i]));
+        }
+        std::cout << "Waiting for threads to finish..." << std::endl;
+        for (int i = 0; i < 4; ++i) {
+            std::cout << "Thread " << i << " finished." << std::endl;
+            threads[i].join();
+            if (bestvalid <= valid[i] && hop[i] < besthop) {
+                bestid = i;
+                besthop = hop[i];
+                bestvalid = valid[i];
+            }
         }
     }
-    hp[bestid].printOut();
+    hp_mt[bestid].evaluate_summary(std::cout);
+    hp_mt[bestid].printOut();
     return 0;
 }

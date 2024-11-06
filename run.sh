@@ -1,4 +1,12 @@
 #!/bin/bash
+
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <case>"
+    exit 1
+fi
+
+CASE=$1
+
 set -e
 mkdir -p build
 cd build
@@ -7,8 +15,7 @@ make
 
 if [ $? -eq 0 ]; then
     echo "Build succeeded."
-    # ./partitioner -t ../testcase/sample01 -s ../testcase/sample01/design.fpga.out
-    ./partitioner -t ../testcase/case01 -s ../testcase/case01/design.fpga.out
+    ./partitioner -t "../testcase/${CASE}" -s "../testcase/${CASE}/design.fpga.out" > output.log
     if [ $? -eq 0 ]; then
         echo "Test succeeded."
     else
@@ -17,3 +24,7 @@ if [ $? -eq 0 ]; then
 else
     echo "Build failed."
 fi
+
+cd ..
+
+./evaluator/evaluator -t "testcase/${CASE}" -s "testcase/${CASE}/design.fpga.out"

@@ -26,11 +26,6 @@ void HyPar::k_way_localized_refine(int sel) {
     auto [u, v] = contract_memo.top();
     int f = nodes[u].fpga;
     _uncontract(u, v, f);
-    nodes[v].fpga = f;
-    fpgas[f].nodes.insert(v);
-    for (int net : nodes[v].nets) {
-        ++nets[net].fpgas[f];
-    }
     std::vector<std::pair<int,int>> move_seq; // (node, from_fpga)
     std::unordered_map<int, int> node_state; // 0: inactive, 1: active, 2: locked
     std::unordered_map<std::pair<int,int>, int, pair_hash> gain_map; // (node, fpga) -> gain
@@ -39,17 +34,17 @@ void HyPar::k_way_localized_refine(int sel) {
     node_state[v] = 1;
     active_nodes.insert(u);
     active_nodes.insert(v);
-    _cal_refine_gain(u, f, sel, gain_map);
-    _cal_refine_gain(v, f, sel, gain_map);
-    int gain_sum = 0, cnt = 0, min_pass = std::log(nodes.size()) / std::log(2);
-    int max_sum = -INT_MAX, max_pass = 0;
-    while (cnt < min_pass || gain_sum > 0) {
-        int max_gain = -INT_MAX, max_n = -1, max_tf;
-        for (int node : active_nodes) {
+    _cal_gain(u, f, sel, gain_map);
+    _cal_gain(v, f, sel, gain_map);
+    int gain_sum = 0, cnt = 0, min_pass = std::log(existing_nodes.size()) / std::log(2);
+    int max_sum = -INT_MAX, max_pass = -1;
+    while ((cnt < min_pass || gain_sum > 0) && !active_nodes.empty()) {
+        int max_gain = -INT_MAX, max_n = -1, max_tf = -1;
+        for (int u : active_nodes) {
             for (int f = 0; f < K; ++f) {
-                if (gain_map.count({node, f}) && gain_map[{node, f}] > max_gain && _fpga_add_try(f, node)) {
-                    max_gain = gain_map[{node, f}];
-                    max_n = node;
+                if (gain_map.count({u, f}) && gain_map[{u, f}] > max_gain && _fpga_add_try(f, u)) {
+                    max_gain = gain_map[{u, f}];
+                    max_n = u;
                     max_tf = f;
                 }
             }
@@ -65,7 +60,7 @@ void HyPar::k_way_localized_refine(int sel) {
         int of = nodes[max_n].fpga;
         move_seq.emplace_back(max_n, of);
         gain_sum += max_gain;
-        if (gain_sum > max_sum) {
+        if (gain_sum > 0 && gain_sum > max_sum) {
             max_sum = gain_sum;
             max_pass = static_cast<int>(move_seq.size() - 1);
         }
@@ -86,33 +81,25 @@ void HyPar::k_way_localized_refine(int sel) {
                     continue;
                 }
                 node_caled[v] = true;
-                _cal_refine_gain(v, nodes[v].fpga, sel, gain_map);
+                _cal_gain(v, nodes[v].fpga, sel, gain_map);
+                active_nodes.insert(v);
                 node_state[v] = 1;
-                // if (node_state[node] == 0) {
-                //     node_state[node] = 1;
-                //     active_nodes.insert(node);
-                //     _cal_refine_gain(node, nodes[node].fpga, sel, gain_map);
-                // } else if (node_state[node] == 1) { // @warning: Currently, we do not consider the case when the move enlarges the choice set
-                //     if (nets[net].source == max_n || nets[net].source == node) {
-                //         for (int f = 0; f < K; ++f) {
-                //             if (gain_map.count({node, f})) {
-                //                 gain_map[{node, f}] += fpgaMap[max_tf][nodes[node].fpga] - fpgaMap[max_tf][K] - fpgaMap[of][nodes[node].fpga] + fpgaMap[of][K];
-                //             }
-                //         }
-                //     }
-                // }
             }
         }
     }
     // now we go back to the best solution
-    for (int i = static_cast<int>(move_seq.size()) - 1; i > max_pass; --i) {
-        auto [node, of] = move_seq[i];
-        int tf = nodes[node].fpga;
-        fpgas[tf].nodes.erase(node);
-        _fpga_remove_force(tf, node);
-        nodes[node].fpga = of;
-        fpgas[of].nodes.insert(node);
-        _fpga_add_force(of, node);
+    for (size_t i = move_seq.size() - 1; i > max_pass; --i) {
+        auto [u, of] = move_seq[i];
+        int tf = nodes[u].fpga;
+        fpgas[tf].nodes.erase(u);
+        _fpga_remove_force(tf, u);
+        nodes[u].fpga = of;
+        fpgas[of].nodes.insert(u);
+        _fpga_add_force(of, u);
+        for (int net : nodes[u].nets) {
+            ++nets[net].fpgas[of];
+            --nets[net].fpgas[tf];
+        }
     }
 }
 
@@ -542,18 +529,8 @@ bool HyPar::force_validity_refine(int sel) {
 void HyPar::refine() {
     int cnt = 0;
     while (!contract_memo.empty()) {
+        std::cout << "refine " << cnt++ << std::endl;
         k_way_localized_refine(2);
-    }
-    while (!_fpga_chk_res()) {
-        greedy_hypergraph_growth(2);
-    }
-    while (!refine_max_hop()) {
-        std::cout << "refine max hop" << std::endl;
-        continue;
-    }
-    while (_fpga_cal_conn(), !_fpga_chk_conn()) {
-        std::cout << "refine connectivity" << std::endl;
-        force_connectivity_refine();
     }
     evaluate_summary(std::cout);
 }
@@ -562,18 +539,6 @@ void HyPar::fast_refine() {
     int cnt = 0;
     while (!contract_memo.empty()) {
         k_way_localized_refine(1 + (cnt++) % 2);
-    }
-    while (!_fpga_chk_res()) {
-        std::cout << "refine res" << std::endl;
-        force_validity_refine(2);
-    }
-    while (!refine_max_hop()) {
-        std::cout << "refine max hop" << std::endl;
-        continue;
-    }
-    while (_fpga_cal_conn(), !_fpga_chk_conn()) {
-        std::cout << "refine connectivity" << std::endl;
-        force_connectivity_refine();
     }
     evaluate_summary(std::cout);
 }
@@ -584,18 +549,6 @@ void HyPar::only_fast_refine() {
         int num = std::log(existing_nodes.size());
         only_fast_k_way_localized_refine(num, 2);
         std::cout << "fast refine" << std::endl;
-    }
-    while (!_fpga_chk_res()) {
-        std::cout << "refine res" << std::endl;
-        force_validity_refine(2);
-    }
-    while (!refine_max_hop()) {
-        std::cout << "refine max hop" << std::endl;
-        continue;
-    }
-    while (_fpga_cal_conn(), !_fpga_chk_conn()) {
-        std::cout << "refine connectivity" << std::endl;
-        force_connectivity_refine();
     }
     evaluate_summary(std::cout);
 }

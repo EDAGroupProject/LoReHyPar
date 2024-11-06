@@ -7,7 +7,7 @@ make
 
 if [ $? -eq 0 ]; then
     echo "Build succeeded."
-    gdb -q -ex "run -t ../testcase/case03 -s ../testcase/case03/design.fpga.out" -ex "bt" -ex "quit" --args ./partitioner
+    gdb -q -ex "run -t ../testcase/case01 -s ../testcase/case01/design.fpga.out" -ex "bt" -ex "quit" --args ./partitioner
     if [ $? -eq 0 ]; then
         echo "Test succeeded."
     else
