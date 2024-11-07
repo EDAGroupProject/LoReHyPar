@@ -80,18 +80,16 @@ private:
     std::vector<std::unordered_set<int>> communities;
     std::unordered_map<int, int> node2community;
     std::stack<std::pair<int, int>> contract_memo;
-    // std::unordered_map<int, int> netFp;
     double ceil_rescap[NUM_RES]{}, ceil_size{};
     double mean_res[NUM_RES]{};
 
     // basic operations
     void _contract(int u, int v);   // contract v into u
+    void _contract_with_nodefp(int u, int v); // contract v into u
     void _uncontract(int u, int v); // uncontract v from u
     void _uncontract(int u, int v, int f);  // uncontract v from u
     float _heavy_edge_rating(int u, int v); // rate the pair (u, v) "heavy edge"
     float _heavy_edge_rating(int u, int v, std::unordered_map<std::pair<int, int>, int, pair_hash> &rating); // rate the pair (u, v) "heavy edge"
-    // void _init_net_fp();
-    // void _detect_para_singv_net(); // detect and remove parallel nets or single vertex nets
     bool _contract_eligible(int u, int v); // check if u and v are eligible to be contracted
     bool _fpga_add_try(int f, int u);
     bool _fpga_add_force(int f, int u);
@@ -114,6 +112,7 @@ private:
     void _get_eligible_fpga(int u, std::unordered_set<int> &toFpga);
     void _get_eligible_fpga(int u, std::unordered_map<int, bool> &toFpga);
     bool _chk_legel_put();
+    bool _chk_net_fpgas();
 
 public:
     HyPar() = default;
@@ -132,8 +131,8 @@ public:
     void printOut(std::ofstream &out);
 
     // Preprocessing
-    // @todo: preprocessing function
     void preprocess();
+    void fast_preprocess();
     void pin_sparsify();
     void pin_sparsify_in_community(int community, int c_min, int c_max);
     void fast_pin_sparsify();
@@ -141,7 +140,6 @@ public:
     int community_detect();
     void contract_in_community(int community);
     void contract_in_community(const std::unordered_set<int> &community, std::unordered_set<int> &active_nodes);
-    void recursive_community_contract();
 
     // Coarsening
     void coarsen();
@@ -152,7 +150,6 @@ public:
     bool fast_coarsen_in_community(int community);
     bool naive_coarsen_in_community(int community);
     bool coarsen_by_nets();
-    // @todo: detect&remove parallel nets or single vertex nets
 
     // Initial Partitioning
     void initial_partition();
@@ -160,7 +157,6 @@ public:
     void bfs_partition();
     void SCLa_propagation();
     void greedy_hypergraph_growth(int sel);
-    // @todo: other partitioning methods to enrich the portfolio
 
     // Refinement
     void refine();
@@ -170,15 +166,9 @@ public:
     void k_way_localized_refine(int sel);
     void fast_k_way_localized_refine(int num, int sel);
     void only_fast_k_way_localized_refine(int num, int sel);
-    bool refine_max_connectivity();
-    bool refine_res_validity(int sel);
-    bool refine_max_hop();
-    void refine_random_one_node(int sel);
-    void force_connectivity_refine();
-    bool force_validity_refine(int sel = 0);
 
     void run();
-    void run_after_coarsen();
+    void run_before_coarsen();
     void run_after_coarsen(bool &valid, long long &hop);
     void evaluate_summary(std::ostream &out);
     void evaluate_summary(bool &valid, long long &hop, std::ostream &out);

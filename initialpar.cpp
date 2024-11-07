@@ -147,11 +147,6 @@ void HyPar::SCLa_propagation() {
             }
         }
     }
-    // for (int u : existing_nodes) {
-    //     if (std::find(unlabeled_nodes.begin(), unlabeled_nodes.end(), u) == unlabeled_nodes.end() && nodes[u].fpga == -1) {
-    //         std::cout << "Error: " << u << " is not labeled" << std::endl;
-    //     }
-    // }
     for (int u : unlabeled_nodes) {
         std::shuffle(fpgaVec.begin(), fpgaVec.end(), rng);
         std::unordered_set<int> toFpga(fpgaVec.begin(), fpgaVec.end());
@@ -315,15 +310,13 @@ void HyPar::greedy_hypergraph_growth(int sel) { // I use this based on the forme
 // @todo: other partitioning methods to enrich the portfolio
 void HyPar::initial_partition() {
     bool bestvalid = false, valid;
-    long long best_totalconn = 0, conn;
     long long minHop = LONG_LONG_MAX, hop;
     HyPar best, tmp;
     for (int i = 0; i < 10; ++i){
         tmp = *this;
         tmp.bfs_partition();
-        conn = tmp._fpga_cal_conn();
         tmp.evaluate(valid, hop);
-        if ((!bestvalid || valid) && (hop < minHop || conn < best_totalconn)) {
+        if ((!bestvalid || valid) && (hop < minHop)) {
             best = tmp;
             bestvalid = valid;
             minHop = hop;
@@ -333,9 +326,8 @@ void HyPar::initial_partition() {
     for (int i = 0; i < 10; ++i){
         tmp = *this;
         tmp.SCLa_propagation();
-        conn = tmp._fpga_cal_conn();
         tmp.evaluate(valid, hop);
-        if ((!bestvalid || valid) && (hop < minHop || conn < best_totalconn)) {
+        if ((!bestvalid || valid) && (hop < minHop)) {
             best = tmp;
             bestvalid = valid;
             minHop = hop;
@@ -343,38 +335,31 @@ void HyPar::initial_partition() {
         std::cout << "SCLa Partition: " << hop << std::endl;
     }
     tmp = best;
-    // bool flag = true;
-    // for (int i = 0; i < 10 && flag; ++i){
-    //     flag = false;
-        tmp.greedy_hypergraph_growth(2);
-        conn = tmp._fpga_cal_conn();
+    bool flag = true;
+    while (flag) {
+        flag = false;
+        tmp.greedy_hypergraph_growth(0);
         tmp.evaluate(valid, hop);
-        if ((!bestvalid || valid) && (hop < minHop || conn < best_totalconn)) {
-            // flag = true;
+        std::cout << "Greedy Hypergraph Growth: " << hop << std::endl;
+        if ((!bestvalid || valid) && (hop < minHop)) {
+            flag = true;
             best = tmp;
             bestvalid = valid;
-            best_totalconn = conn;
             minHop = hop;
         }
-        std::cout << "Greedy Hypergraph Growth: " << hop << std::endl;
-    // }
-    *this = std::move(best);
-    if (!bestvalid) {
-        std::cout << "No valid solution found!" << std::endl;
     }
+    *this = std::move(best);
     std::cout << "Initial Partition: " << minHop << std::endl;
 }
 
 void HyPar::fast_initial_partition() {
     bool bestvalid = false, valid;
-    long long best_totalconn = 0, conn;
     long long minHop = LONG_LONG_MAX, hop;
     HyPar best, tmp;
     tmp = *this;
     tmp.bfs_partition();
-    conn = tmp._fpga_cal_conn();
     tmp.evaluate(valid, hop);
-    if ((!bestvalid || valid) && (hop < minHop || conn < best_totalconn)) {
+    if ((!bestvalid || valid) && (hop < minHop)) {
         best = tmp;
         bestvalid = valid;
         minHop = hop;
@@ -382,32 +367,17 @@ void HyPar::fast_initial_partition() {
     std::cout << "BFS Partition: " << hop << std::endl;
     tmp = *this;
     tmp.SCLa_propagation();
-    conn = tmp._fpga_cal_conn();
     tmp.evaluate(valid, hop);
-    if ((!bestvalid || valid) && (hop < minHop || conn < best_totalconn)) {
+    if ((!bestvalid || valid) && (hop < minHop)) {
         best = tmp;
         bestvalid = valid;
         minHop = hop;
     }
     std::cout << "SCLa Partition: " << hop << std::endl;
-    // tmp = best;
-    // for (int i = 1; i < 3; ++i){
-    //     tmp.greedy_hypergraph_growth(i);
-    //     conn = tmp._fpga_cal_conn();
-    //     tmp.evaluate(valid, hop);
-    //     if ((!bestvalid || valid) && (hop < minHop || conn < best_totalconn)) {
-    //         best = tmp;
-    //         bestvalid = valid;
-    //         best_totalconn = conn;
-    //         minHop = hop;
-    //     }
-    //     std::cout << "Greedy Hypergraph Growth: " << hop << std::endl;
-    // }
-    *this = std::move(best);
-    // if (!bestvalid) {
-    //     std::cout << "No valid solution found!" << std::endl;
-    // }
-    // std::cout << "Initial Partition: " << minHop << std::endl;
+    tmp.greedy_hypergraph_growth(0);
+    tmp.evaluate(valid, hop);
+    std::cout << "Greedy Hypergraph Growth: " << hop << std::endl;
+    *this = std::move(tmp);
 }
 
 // how to meet the connectivity constraint?

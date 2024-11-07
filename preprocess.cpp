@@ -265,7 +265,6 @@ int HyPar::community_detect() {
     return max_size;
 }
 
-
 void HyPar::contract_in_community(int community) {
     auto it = communities[community].begin();
     int u = *it;
@@ -288,62 +287,30 @@ void HyPar::contract_in_community(const std::unordered_set<int> &community, std:
     }
 }
 
-void HyPar::recursive_community_contract() {
-    std::unordered_set<int> active_nodes(existing_nodes);
-    std::vector<int> community_sizes;
-    bool end_flag = false;
-    size_t ceil = static_cast<size_t>(std::ceil(double(nodes.size()) / (10)));
-    size_t old_size = -1;
-    while (!end_flag || active_nodes.size() > ceil || existing_nodes.size() != old_size) {
-        std::cout<< active_nodes.size() << " " << communities.size() <<std::endl;
-        end_flag = true;
-        old_size = existing_nodes.size();
-        Louvain lv(nets.size() + active_nodes.size());
-        std::vector<int> louvain2node;
-        for (int node : active_nodes) {
-            louvain2node.push_back(node); 
-            for (int net : nodes[node].nets) {
-                lv.addEdge(nets.size() + node, net, 1.0);
-            }
-        }
-        lv.run();
-        communities.clear();
-        community_sizes.clear();
-        for (int c : lv.nodes) {
-            std::unordered_set<int> community;
-            int size = 0;
-            for (int u : lv.communityNodes[c]) {
-                if (u >= static_cast<int>(nets.size())) {
-                    int node = louvain2node[u - nets.size()];
-                    community.insert(node);
-                    size += nodes[node].size;
-                }
-            }
-            if (community.empty()) {
-                continue;
-            }
-            community_sizes.push_back(size);
-            communities.push_back(community);
-        }
-        int c_min = static_cast<int>(std::ceil(double(nodes.size()) / (K * parameter_t * communities.size())));
-        int c_max = static_cast<int>(std::ceil(double(nodes.size()) / (communities.size())));
-        for (size_t i = 0; i < communities.size(); ++i) {
-            if (community_sizes[i] <= c_max) {
-                end_flag = false;
-                contract_in_community(communities[i], active_nodes);
-                if (static_cast<int>(active_nodes.size()) > c_min) {
-                    active_nodes.erase(*communities[i].begin());
-                }
-            }
-        }
-    }
-}
-
 void HyPar::preprocess() {
     for(size_t i = 0; i < nodes.size(); ++i) {
         existing_nodes.insert(i);
     }
+    community_detect();
+    for (size_t i = 0; i < communities.size(); ++i) {
+        for (int u : communities[i]) {
+            node2community[u] = i;
+        }
+    }
+}
+
+void HyPar::fast_preprocess() {
+    for(size_t i = 0; i < nodes.size(); ++i) {
+        existing_nodes.insert(i);
+    }
     int max_size = community_detect();
+    int c_min = static_cast<int>(std::ceil(double(max_size) / (10)));
+    int c_max = static_cast<int>(std::ceil(double(nodes.size()) / (K * parameter_t)));
+    for (size_t i = 0; i < communities.size(); ++i) {
+        if (static_cast<int>(communities[i].size()) > c_min) {
+            fast_pin_sparsify_in_community(i, c_min, c_max);
+        }
+    }
     for (size_t i = 0; i < communities.size(); ++i) {
         for (int u : communities[i]) {
             node2community[u] = i;

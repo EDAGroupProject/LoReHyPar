@@ -32,8 +32,7 @@ int main(int argc, char **argv) {
     }
     HyPar hp(inputDir, outputFile);
     HyPar hp_mt[4];
-    hp.preprocess();
-    hp.coarsen();
+    hp.run_before_coarsen();
     std::thread threads[4];
     bool valid[4], bestvalid = false;
     long long hop[4], besthop = __LONG_LONG_MAX__;
@@ -50,8 +49,8 @@ int main(int argc, char **argv) {
         }
         std::cout << "Waiting for threads to finish..." << std::endl;
         for (int i = 0; i < 4; ++i) {
-            std::cout << "Thread " << i << " finished." << std::endl;
             threads[i].join();
+            std::cout << "Thread " << i << " finished." << std::endl;
             if (bestvalid <= valid[i] && hop[i] < besthop) {
                 bestid = i;
                 besthop = hop[i];

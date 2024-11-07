@@ -1,4 +1,12 @@
 #!/bin/bash
+
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <case>"
+    exit 1
+fi
+
+CASE=$1
+
 set -e
 mkdir -p build
 cd build
@@ -7,7 +15,7 @@ make
 
 if [ $? -eq 0 ]; then
     echo "Build succeeded."
-    gdb -q -ex "run -t ../testcase/case01 -s ../testcase/case01/design.fpga.out" -ex "bt" -ex "quit" --args ./partitioner
+    gdb -q -ex "run -t ../testcase/${CASE} -s ../testcase/${CASE}/design.fpga.out" -ex "bt" -ex "quit" --args ./partitioner
     if [ $? -eq 0 ]; then
         echo "Test succeeded."
     else
