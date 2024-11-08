@@ -35,14 +35,14 @@ struct pair_hash final {
 
 struct Node {
     std::string name{};
-    int isRep{}; // is replicated node, dont know how to handle this
+    int rep{-1}; // -1: not a representative, >= 0: the representative
     int fpga{-1}; // easy to signal the partition
-    double resLoad[NUM_RES]{};
+    std::vector<double> resLoad{NUM_RES, 0.0};
     int size{1};
     int fp{};
-    std::vector<int> reps{};
     std::unordered_set<int> nets{};
     std::unordered_map<int, bool> isSou{};
+    ~Node() = default;
 };
 
 struct Net {
@@ -51,15 +51,16 @@ struct Net {
     int size{};
     std::vector<int> nodes{};
     std::unordered_map<int, int> fpgas{}; // help to calculate the connectivity
-    // when kvp.second == 0, it should be erased
+    ~Net() = default;
 };
 
 struct Fpga {
     std::string name{};
     int maxConn{}, conn{};
-    double resCap[NUM_RES]{}, resUsed[NUM_RES]{};
+    std::vector<double> resCap{NUM_RES, 0.0}, resUsed{NUM_RES, 0.0};
     bool resValid{true}; // update after add or remove a node
     std::unordered_set<int> nodes{};
+    ~Fpga() = default;
 };
 
 class HyPar {
@@ -80,8 +81,8 @@ private:
     std::vector<std::unordered_set<int>> communities;
     std::unordered_map<int, int> node2community;
     std::stack<std::pair<int, int>> contract_memo;
-    double ceil_rescap[NUM_RES]{}, ceil_size{};
-    double mean_res[NUM_RES]{};
+    std::vector<double> mean_res{NUM_RES, 0.0}, ceil_rescap{NUM_RES, 0.0};
+    double ceil_size{};
 
     // basic operations
     void _contract(int u, int v);   // contract v into u
@@ -132,7 +133,6 @@ public:
 
     // Preprocessing
     void preprocess();
-    void fast_preprocess();
     void pin_sparsify();
     void pin_sparsify_in_community(int community, int c_min, int c_max);
     void fast_pin_sparsify();
@@ -150,6 +150,7 @@ public:
     bool fast_coarsen_in_community(int community);
     bool naive_coarsen_in_community(int community);
     bool coarsen_by_nets();
+    bool coarsen_by_nets_in_community();
 
     // Initial Partitioning
     void initial_partition();

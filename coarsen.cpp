@@ -134,6 +134,39 @@ bool HyPar::coarsen_by_nets() {
         for (int i = 0; i < net.size; ++i) {
             int u = net.nodes[i];
             for (int j = i + 1; j < net.size; ++j) {
+                int v = net.nodes[j];
+                rating[{u, v}] += net.weight / (net.size - 1);
+            }
+        }
+    }
+    for (const auto& [key, r] : rating) {
+        rating_map.push({r, key.first, key.second});
+    }
+    while (!rating_map.empty() && existing_nodes.size() >= static_cast<size_t>(K * parameter_t)) {
+        auto [r, u, v] = rating_map.top();
+        rating_map.pop();
+        if (deleted_nodes.count(u) || deleted_nodes.count(v)) {
+            continue;
+        }
+        if (_contract_eligible(u, v)) {
+            _contract(u, v);
+            contFlag = true;
+        }
+    }
+    return contFlag;                                                                                                                                                                                                                                            
+}
+
+bool HyPar::coarsen_by_nets_in_community() {
+    bool contFlag = false;
+    std::priority_queue<std::tuple<int, int, int>> rating_map;
+    std::unordered_map<std::pair<int, int>, int, pair_hash> rating;
+    for (auto &net : nets) {
+        if (net.size > parameter_l || net.size == 1) {
+            continue;
+        }
+        for (int i = 0; i < net.size; ++i) {
+            int u = net.nodes[i];
+            for (int j = i + 1; j < net.size; ++j) {
                 if (node2community[u] != node2community[net.nodes[j]]) {
                     continue;
                 }
@@ -160,23 +193,19 @@ bool HyPar::coarsen_by_nets() {
 }
 
 void HyPar::coarsen() {
-    while (coarsen_by_nets() && existing_nodes.size() >= static_cast<size_t>(K * parameter_t)) {
+    while (coarsen_by_nets_in_community() && existing_nodes.size() >= static_cast<size_t>(K * parameter_t)) {
         continue;
     }
     std::cout << "After coarsen: " << existing_nodes.size() << std::endl;
 }
 
 void HyPar::fast_coarsen() {
-    std::vector<int> communiy_vec(communities.size());
-    std::iota(communiy_vec.begin(), communiy_vec.end(), 0);
-    std::sort(communiy_vec.begin(), communiy_vec.end(), [&](int i, int j) {return communities[i].size() > communities[j].size();});
-    for (int c : communiy_vec) {
-        if (existing_nodes.size() < static_cast<size_t>(K * parameter_t)) {
-            break;
-        }
-        while (naive_coarsen_in_community(c) && existing_nodes.size() >= static_cast<size_t>(K * parameter_t)) {
-            continue;
-        }
+    while (coarsen_by_nets_in_community() && existing_nodes.size() >= static_cast<size_t>(K * parameter_t)) {
+        continue;
+    }
+    std::cout << "After coarsen: " << existing_nodes.size() << std::endl;
+    while (coarsen_by_nets() && existing_nodes.size() >= static_cast<size_t>(K * parameter_t)) {
+        continue;
     }
     std::cout << "After coarsen: " << existing_nodes.size() << std::endl;
 }

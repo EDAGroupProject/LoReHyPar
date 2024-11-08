@@ -298,22 +298,3 @@ void HyPar::preprocess() {
         }
     }
 }
-
-void HyPar::fast_preprocess() {
-    for(size_t i = 0; i < nodes.size(); ++i) {
-        existing_nodes.insert(i);
-    }
-    int max_size = community_detect();
-    int c_min = static_cast<int>(std::ceil(double(max_size) / (10)));
-    int c_max = static_cast<int>(std::ceil(double(nodes.size()) / (K * parameter_t)));
-    for (size_t i = 0; i < communities.size(); ++i) {
-        if (static_cast<int>(communities[i].size()) > c_min) {
-            fast_pin_sparsify_in_community(i, c_min, c_max);
-        }
-    }
-    for (size_t i = 0; i < communities.size(); ++i) {
-        for (int u : communities[i]) {
-            node2community[u] = i;
-        }
-    }
-}

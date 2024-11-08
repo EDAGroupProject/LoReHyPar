@@ -108,17 +108,13 @@ void HyPar::printSummary(std::ostream &out) {
     out << "Nodes: " << nodes.size() << std::endl;
     for (size_t i = 0; i < nodes.size(); ++i) {
         auto &node = nodes[i];
-        out << "  node " << i << ": " << node.name << "-" << std::to_string(node.isRep) << "\n    resLoad: ";
+        out << "  node " << i << ": " << node.name << ": " << node.rep << "\n    resLoad: ";
         for (int i = 0; i < NUM_RES; ++i) {
             out << node.resLoad[i] << " ";
         }
         out << "\n    nets: ";
         for (auto net : node.nets) {
             out << net << " ";
-        }
-        out << "\n    reps: ";
-        for (auto rep : node.reps) {
-            out << rep << " ";
         }
         out << "\n    fpga: " << node.fpga << std::endl;
     }
@@ -170,17 +166,13 @@ void HyPar::printSummary(std::ofstream &out) {
     out << "Nodes: " << nodes.size() << std::endl;
     for (size_t i = 0; i < nodes.size(); ++i) {
         auto &node = nodes[i];
-        out << "  node " << i << ": " << node.name << "-" << std::to_string(node.isRep) << "\n    resLoad: ";
+        out << "  node " << i << ": " << node.name << ": " << node.rep << "\n    resLoad: ";
         for (int i = 0; i < NUM_RES; ++i) {
             out << node.resLoad[i] << " ";
         }
         out << "\n    nets: ";
         for (auto net : node.nets) {
             out << net << " ";
-        }
-        out << "\n    reps: ";
-        for (auto rep : node.reps) {
-            out << rep << " ";
         }
         out << "\n    fpga: " << node.fpga << std::endl;
     }
@@ -229,7 +221,7 @@ void HyPar::printOut(std::ofstream &out) {
     for (auto &fpga: fpgas) {
         out << fpga.name << ": ";
         for (auto node : fpga.nodes) {
-            if(nodes[node].isRep) {
+            if(nodes[node].rep != -1) {
                 out << nodes[node].name << "* ";
             }else{
                 out << nodes[node].name << " ";
@@ -685,17 +677,10 @@ void HyPar::_cal_gain(int u, int f, int sel, std::priority_queue<std::tuple<int,
     if (toFpga.empty()) {
         return;
     }
-    int maxGain = -INT_MAX, maxF = -1;
     std::unordered_map<int, int> _gain_map;
     _gain_function(f, toFpga, u, sel, _gain_map);
     for (auto [ff, gain] : _gain_map) {
-        if (gain > maxGain) {
-            maxGain = gain;
-            maxF = ff;
-        }
-    }
-    if (maxF != -1) {
-        gain_map.push({maxGain, u, maxF});
+        gain_map.push({gain, u, ff});
     }
 }
 
@@ -943,17 +928,14 @@ void HyPar::run() {
         only_fast_refine();
     }
     evaluate_summary(std::cout);
-    // std::ofstream out(outputFile);
-    // printOut(out);
 }
 
 void HyPar::run_before_coarsen() {
-    if (nodes.size() < 1e4) {
-        preprocess();
+    preprocess();
+    if (nodes.size() < 1e5) {
         coarsen();
     } else {
-        fast_preprocess();
-        coarsen();
+        fast_coarsen();
     }
 }
 
@@ -965,16 +947,14 @@ void HyPar::run_after_coarsen(bool &valid, long long &hop) {
         auto start = std::chrono::high_resolution_clock::now();
         fast_initial_partition();
         auto end = std::chrono::high_resolution_clock::now();
-        std::cout << "Fast initial partition time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+        std::cout << "Fast initial partition time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
         start = std::chrono::high_resolution_clock::now();
         fast_refine();
         end = std::chrono::high_resolution_clock::now();
-        std::cout << "Fast refine time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+        std::cout << "Fast refine time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
     } else {
         fast_initial_partition();
         only_fast_refine();
     }
     evaluate_summary(valid, hop, std::cout);
-    // std::ofstream out(outputFile);
-    // printOut(out);
 }
