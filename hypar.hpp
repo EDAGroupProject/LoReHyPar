@@ -13,6 +13,7 @@
 #include <unordered_set>
 #include <vector>
 #include <cassert>
+#include <thread>
 
 #define NUM_RES 8
 
@@ -116,6 +117,8 @@ public:
     HyPar() = default;
     HyPar(std::string _inputDir, std::string _outputFile);
 
+    int N; // number of nodes
+
     void readInfo(std::ifstream &info);
     void readAre(std::ifstream &are);
     void readNet(std::ifstream &net);
@@ -127,10 +130,12 @@ public:
 
     // Preprocessing
     void preprocess();
+    void fast_preprocess();
     void pin_sparsify();
     void pin_sparsify_in_community(int community, int c_min, int c_max);
     void fast_pin_sparsify();
-    void fast_pin_sparsify_in_community(int community, int c_min, int c_max);
+    void fast_pin_sparsify_in_community(int community, int c_min);
+    void fast_pin_sparsify_in_community(std::unordered_set<int> &community, int c_min, int c_max);
     int community_detect();
     void contract_in_community(int community);
     void contract_in_community(const std::unordered_set<int> &community, std::unordered_set<int> &active_nodes);

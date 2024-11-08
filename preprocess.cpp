@@ -42,7 +42,7 @@ void HyPar::pin_sparsify() {
                     }
                     vis[neighbor] = true;
                     if (hashTable[node] == hashTable[neighbor]) {
-                        _contract(node, neighbor);
+                        _contract_with_nodefp(node, neighbor);
                         active_nodes.erase(neighbor);
                     } 
                 }
@@ -103,7 +103,7 @@ void HyPar::fast_pin_sparsify() {
         for (size_t i = 1; i < nodeVec.size(); ++i) {
             if (hashTable[nodeVec[i]] == hash) {
                 if (nodes[u].size + nodes[nodeVec[i]].size <= c_max) {
-                    _contract(u, nodeVec[i]);
+                    _contract_with_nodefp(u, nodeVec[i]);
                     active_nodes.erase(nodeVec[i]);
                 } else {
                     active_nodes.erase(u);
@@ -120,9 +120,57 @@ void HyPar::fast_pin_sparsify() {
     }
 }
 
-void HyPar::fast_pin_sparsify_in_community(int community, int c_min, int c_max) {
+void HyPar::fast_pin_sparsify_in_community(int community, int c_min) {
     int hash_num = NUM_HASHES;
     std::unordered_set<int> active_nodes(communities[community]);
+    std::mt19937 rng = get_rng();
+    std::uniform_int_distribution<int> dis(0, hash_num - 1);
+    for (int hash_sel = 4; hash_sel >= 1; --hash_sel) {
+        std::vector<int> slice(hash_sel);
+        for (int i = 0; i < hash_sel; ++i) {
+            int rd = dis(rng);
+            while (std::find(slice.begin(), slice.end(), rd) != slice.end()) {
+                rd = dis(rng);
+            }
+            slice[i] = rd;
+        }
+        std::unordered_map<int, std::vector<int>> hashTable;
+        for (int node : active_nodes) {
+            for (int i = 0; i < hash_sel; ++i) {
+                int hash_id = slice[i];
+                hashTable[node].emplace_back((A_VALUES[hash_id] * nodes[node].fp + B_VALUES[hash_id]) % P_VALUES[hash_id]);
+            }
+        }
+        std::vector<int> nodeVec(active_nodes.begin(), active_nodes.end());
+        std::sort(nodeVec.begin(), nodeVec.end(), [&](int u, int v) {
+            return comp(hashTable[u], hashTable[v]);
+        });
+        auto hash = hashTable[nodeVec[0]];
+        int u = nodeVec[0];
+        for (size_t i = 1; i < nodeVec.size(); ++i) {
+            if (hashTable[nodeVec[i]] == hash) {
+                if (_contract_eligible(u, nodeVec[i])) {
+                    _contract_with_nodefp(u, nodeVec[i]);
+                    active_nodes.erase(nodeVec[i]);
+                    communities[community].erase(nodeVec[i]);
+                } else {
+                    active_nodes.erase(u);
+                    u = nodeVec[i];
+                }
+            } else {
+                if (nodes[u].size >= c_min) {
+                    active_nodes.erase(u);
+                }
+                hash = hashTable[nodeVec[i]];
+                u = nodeVec[i];
+            }
+        }
+    }
+}
+
+void HyPar::fast_pin_sparsify_in_community(std::unordered_set<int> &community, int c_min, int c_max) {
+    int hash_num = NUM_HASHES;
+    std::unordered_set<int> active_nodes(community);
     std::mt19937 rng = get_rng();
     std::uniform_int_distribution<int> dis(0, hash_num - 1);
     for (int hash_sel = 4; hash_sel >= 2; --hash_sel) {
@@ -149,10 +197,10 @@ void HyPar::fast_pin_sparsify_in_community(int community, int c_min, int c_max) 
         int u = nodeVec[0];
         for (size_t i = 1; i < nodeVec.size(); ++i) {
             if (hashTable[nodeVec[i]] == hash) {
-                if (nodes[u].size + nodes[nodeVec[i]].size <= c_max) {
-                    _contract(u, nodeVec[i]);
+                if (nodes[u].size + nodes[nodeVec[i]].size <= c_max && _contract_eligible(u, nodeVec[i])) {
+                    _contract_with_nodefp(u, nodeVec[i]);
                     active_nodes.erase(nodeVec[i]);
-                    communities[community].erase(nodeVec[i]);
+                    community.erase(nodeVec[i]);
                 } else {
                     active_nodes.erase(u);
                     u = nodeVec[i];
@@ -205,7 +253,7 @@ void HyPar::pin_sparsify_in_community(int community, int c_min, int c_max) {
                     }
                     vis[neighbor] = true;
                     if (hashTable[node] == hashTable[neighbor]) {
-                        _contract(node, neighbor);
+                        _contract_with_nodefp(node, neighbor);
                         communities[community].erase(neighbor);
                         active_nodes.erase(neighbor);
                     }
@@ -227,7 +275,7 @@ void HyPar::pin_sparsify_in_community(int community, int c_min, int c_max) {
 int HyPar::community_detect() {
     Louvain lv(nets.size() + existing_nodes.size());
     std::vector<int> louvain2node;
-    float edge_density = float(nets.size()) / nodes.size();
+    double edge_density = double(nets.size()) / nodes.size();
     if (edge_density >= 0.75) {
         for (int node : existing_nodes) {
             louvain2node.push_back(node);
@@ -240,7 +288,7 @@ int HyPar::community_detect() {
             louvain2node.push_back(node);
             size_t d = nodes[node].nets.size();
             for (int net : nodes[node].nets) {
-                lv.addEdge(nets.size() + node, net, float(d) / nets[net].size);
+                lv.addEdge(nets.size() + node, net, double(d) / nets[net].size);
             }
         }
     }
@@ -271,7 +319,7 @@ void HyPar::contract_in_community(int community) {
     ++it;
     for (; it != communities[community].end(); ) {
         int v = *it;
-        _contract(u, v);
+        _contract_with_nodefp(u, v);
         it = communities[community].erase(it);
     }
 } 
@@ -282,7 +330,7 @@ void HyPar::contract_in_community(const std::unordered_set<int> &community, std:
     ++it;
     for (; it != community.end(); ++it) {
         int v = *it;
-        _contract(u, v);
+        _contract_with_nodefp(u, v);
         active_nodes.erase(v);
     }
 }
@@ -297,4 +345,21 @@ void HyPar::preprocess() {
             node2community[u] = i;
         }
     }
+}
+
+void HyPar::fast_preprocess() {
+    for(size_t i = 0; i < nodes.size(); ++i) {
+        existing_nodes.insert(i);
+    }
+    int max_size = community_detect();
+    int c_min = static_cast<int>(std::ceil(double(max_size) / (10 * parameter_t)));
+    for (size_t i = 0; i < communities.size(); ++i) {
+        if (static_cast<int>(communities[i].size()) > c_min) {
+            fast_pin_sparsify_in_community(i, c_min);
+        }
+        for (int u : communities[i]) {
+            node2community[u] = i;
+        }
+    }
+    std::cout << "After community contract: " << existing_nodes.size() << std::endl;
 }

@@ -3,13 +3,24 @@
 #include <iostream>
 #include <unistd.h>
 #include <thread>
+#include <sys/resource.h>
 
-void run(HyPar &hp, bool &valid, long long &hop) {
+void run_mt(HyPar &hp, bool &valid, long long &hop) {
     hp.run_after_coarsen(valid, hop);
+}
+
+void limit_memory_usage() {
+    struct rlimit rl;
+    rl.rlim_cur = 32L * 1024 * 1024 * 1024; // 32 GB
+    rl.rlim_max = 32L * 1024 * 1024 * 1024; // 32 GB
+    if (setrlimit(RLIMIT_AS, &rl) != 0) {
+        std::cerr << "Failed to set memory limit." << std::endl;
+    }
 }
 
 int main(int argc, char **argv) {
     std::ios::sync_with_stdio(false);
+    limit_memory_usage();
     assert(argc == 5);
     std::string inputDir, outputFile;
     int opt;
@@ -31,35 +42,72 @@ int main(int argc, char **argv) {
         return 1;
     }
     HyPar hp(inputDir, outputFile);
-    HyPar hp_mt[4]{};
+    auto start = std::chrono::high_resolution_clock::now();
     hp.run_before_coarsen();
-    std::thread threads[4];
-    bool valid[4], bestvalid = false;
-    long long hop[4], besthop = __LONG_LONG_MAX__;
-    int bestid = -1;
-    while (!bestvalid) {
-        std::cout << "Starting threads..." << std::endl;
-        bestid = -1;
-        for (int i = 0; i < 4; ++i) {
-            hp_mt[i] = hp;
-        }
-        for (int i = 0; i < 4; ++i) {
-            threads[i] = std::thread(run, std::ref(hp_mt[i]), std::ref(valid[i]), std::ref(hop[i]));
-        }
-        for (int i = 0; i < 4; ++i) {
-            threads[i].join();
-            std::cout << "Thread " << i << " finished." << std::endl;
-            if (bestvalid <= valid[i] && hop[i] < besthop) {
-                bestid = i;
-                besthop = hop[i];
-                bestvalid = valid[i];
+    auto end = std::chrono::high_resolution_clock::now();
+    std::cout << "Before Coarsen: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << " s" << std::endl;
+    std::cout << "Node: " << hp.N << std::endl;
+    if (hp.N < 1e5) {
+        HyPar hp_mt[4]{};
+        std::thread threads[4];
+        bool valid[4], bestvalid = false;
+        long long hop[4], besthop = __LONG_LONG_MAX__;
+        int bestid = -1;
+        while (!bestvalid) {
+            std::cout << "Starting threads..." << std::endl;
+            bestid = -1;
+            for (int i = 0; i < 4; ++i) {
+                hp_mt[i] = hp;
+            }
+            for (int i = 0; i < 4; ++i) {
+                threads[i] = std::thread(run_mt, std::ref(hp_mt[i]), std::ref(valid[i]), std::ref(hop[i]));
+            }
+            for (int i = 0; i < 4; ++i) {
+                threads[i].join();
+                std::cout << "Thread " << i << " finished." << std::endl;
+                if (bestvalid <= valid[i] && hop[i] < besthop) {
+                    bestid = i;
+                    besthop = hop[i];
+                    bestvalid = valid[i];
+                }
+            }
+            if (bestvalid) {
+                std::cout << "Best thread: " << bestid << std::endl;
+                hp_mt[bestid].evaluate_summary(std::cout);
+                hp_mt[bestid].printOut();
+                break;
             }
         }
-        if (bestvalid) {
-            std::cout << "Best thread: " << bestid << std::endl;
-            hp_mt[bestid].evaluate_summary(std::cout);
-            hp_mt[bestid].printOut();
-            break;
+    } else {
+        HyPar hp_mt[2]{};
+        std::thread threads[2];
+        bool valid[2], bestvalid = false;
+        long long hop[2], besthop = __LONG_LONG_MAX__;
+        int bestid = -1;
+        while (!bestvalid) {
+            std::cout << "Starting threads..." << std::endl;
+            bestid = -1;
+            for (int i = 0; i < 2; ++i) {
+                hp_mt[i] = hp;
+            }
+            for (int i = 0; i < 2; ++i) {
+                threads[i] = std::thread(run_mt, std::ref(hp_mt[i]), std::ref(valid[i]), std::ref(hop[i]));
+            }
+            for (int i = 0; i < 2; ++i) {
+                threads[i].join();
+                std::cout << "Thread " << i << " finished." << std::endl;
+                if (bestvalid <= valid[i] && hop[i] < besthop) {
+                    bestid = i;
+                    besthop = hop[i];
+                    bestvalid = valid[i];
+                }
+            }
+            if (bestvalid) {
+                std::cout << "Best thread: " << bestid << std::endl;
+                hp_mt[bestid].evaluate_summary(std::cout);
+                hp_mt[bestid].printOut();
+                break;
+            }
         }
     }
     return 0;

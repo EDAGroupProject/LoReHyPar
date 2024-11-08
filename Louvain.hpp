@@ -10,21 +10,21 @@
 class Louvain {
     friend class HyPar;
 
-    std::vector<std::unordered_map<int, float>> A;
+    std::vector<std::unordered_map<int, double>> A;
     std::vector<int> community;
     std::vector<std::vector<int>> communityNodes;
-    std::vector<float> k_tot;
+    std::vector<double> k_tot;
     std::unordered_set<int> nodes;
     int n;
-    float m;
+    double m;
 
     bool phaseOne();
     void phaseTwo();
-    float calculateDeltaModularity(int u, int c);
+    double calculateDeltaModularity(int u, int c);
 
 public:
     Louvain(int _n);
-    void addEdge(int u, int v, float w);
+    void addEdge(int u, int v, double w);
     void run();
     void print();
 };
@@ -41,7 +41,7 @@ Louvain::Louvain(int _n) : n(_n), m(0.0) {
     nodes.insert(community.begin(), community.end());
 }
 
-void Louvain::addEdge(int u, int v, float w) {
+void Louvain::addEdge(int u, int v, double w) {
     if (u >= n || v >= n) return;
     A[u][v] = w;
     A[v][u] = w;
@@ -58,12 +58,12 @@ bool Louvain::phaseOne() {
             continue;
         }
         int bestCommunity = community[u];
-        float bestDeltaQ = 0.0;
+        double bestDeltaQ = 0.0;
         std::unordered_map<int, bool> community_caled;
         for (const auto& [v, w] : A[u]) {
             if (community_caled[community[v]]) continue;
             community_caled[community[v]] = true;
-            float deltaQ = calculateDeltaModularity(u, community[v]);
+            double deltaQ = calculateDeltaModularity(u, community[v]);
             if (deltaQ > bestDeltaQ) {
                 bestCommunity = community[v];
                 bestDeltaQ = deltaQ;
@@ -114,8 +114,8 @@ void Louvain::run() {
     }
 }
 
-float Louvain::calculateDeltaModularity(int u, int c) {
-    float k_i_in = 0.0;
+double Louvain::calculateDeltaModularity(int u, int c) {
+    double k_i_in = 0.0;
     for (const auto& [v, w] : A[u]) {
         if (community[v] == c) {
             k_i_in += w;

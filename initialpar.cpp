@@ -353,29 +353,12 @@ void HyPar::initial_partition() {
 }
 
 void HyPar::fast_initial_partition() {
-    bool bestvalid = false, valid;
-    long long minHop = LONG_LONG_MAX, hop;
-    HyPar best, tmp;
-    tmp = *this;
-    tmp.bfs_partition();
-    tmp.evaluate(valid, hop);
-    if ((!bestvalid || valid) && (hop < minHop)) {
-        best = tmp;
-        bestvalid = valid;
-        minHop = hop;
-    }
-    std::cout << "BFS Partition: " << hop << std::endl;
-    tmp = *this;
-    tmp.SCLa_propagation();
-    tmp.evaluate(valid, hop);
-    if ((!bestvalid || valid) && (hop < minHop)) {
-        best = tmp;
-        bestvalid = valid;
-        minHop = hop;
-    }
+    bool valid;
+    long long hop;
+    SCLa_propagation();
+    evaluate(valid, hop);
     std::cout << "SCLa Partition: " << hop << std::endl;
-    best.greedy_hypergraph_growth(0);
-    best.evaluate(valid, hop);
+    greedy_hypergraph_growth(0);
+    evaluate(valid, hop);
     std::cout << "Greedy Hypergraph Growth: " << hop << std::endl;
-    *this = std::move(best);
 }

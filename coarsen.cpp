@@ -153,7 +153,7 @@ bool HyPar::coarsen_by_nets() {
             contFlag = true;
         }
     }
-    return contFlag;                                                                                                                                                                                                                                            
+    return contFlag;                                                                                                                                                                                     
 }
 
 bool HyPar::coarsen_by_nets_in_community() {

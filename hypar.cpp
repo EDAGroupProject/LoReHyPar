@@ -17,6 +17,7 @@ HyPar::HyPar(std::string _inputDir, std::string _outputFile) : inputDir(_inputDi
 void HyPar::readInfo(std::ifstream &info) {
     std::string name;
     fpgas.reserve(100);
+    fpga2id.reserve(100);
     while(info >> name) {
         fpga2id[name] = fpgas.size();
         fpgas.emplace_back();
@@ -37,10 +38,13 @@ void HyPar::readAre(std::ifstream &are) {
     std::string name;
     if (K <= 8) {
         nodes.reserve(1e4);
+        node2id.reserve(1e4);
     } else if (K <= 32) {
         nodes.reserve(2e5);
+        node2id.reserve(2e5);
     } else {
         nodes.reserve(5e6);
+        node2id.reserve(5e6);
     }
     while(are >> name) {
         node2id[name] = nodes.size();
@@ -54,7 +58,12 @@ void HyPar::readAre(std::ifstream &are) {
     for (int i = 0; i < NUM_RES; ++i) {
         mean_res[i] = mean_res[i] / nodes.size();
     }
+    N = nodes.size();
     ceil_size = double(nodes.size()) / (K * parameter_t);
+    existing_nodes.reserve(N);
+    deleted_nodes.reserve(N);
+    node2community.reserve(N);
+    communities.reserve(K);
 }
 
 void HyPar::readNet(std::ifstream &net) {
@@ -848,27 +857,22 @@ void HyPar::run() {
 }
 
 void HyPar::run_before_coarsen() {
-    preprocess();
-    if (nodes.size() < 1e5) {
+    if (N < 1e5) {
+        preprocess();
         coarsen();
     } else {
+        fast_preprocess();
         fast_coarsen();
     }
 }
 
 void HyPar::run_after_coarsen(bool &valid, long long &hop) {
-    if (nodes.size() < 1e4) {
+    if (N < 1e4) {
         initial_partition();
         refine();
-    } else if (nodes.size() < 1e5) {
-        auto start = std::chrono::high_resolution_clock::now();
+    } else if (N < 1e5) {
         fast_initial_partition();
-        auto end = std::chrono::high_resolution_clock::now();
-        std::cout << "Fast initial partition time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
-        start = std::chrono::high_resolution_clock::now();
         fast_refine();
-        end = std::chrono::high_resolution_clock::now();
-        std::cout << "Fast refine time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
     } else {
         fast_initial_partition();
         only_fast_refine();
