@@ -5,8 +5,28 @@
 #include <thread>
 #include <sys/resource.h>
 
-void run_mt(HyPar &hp, bool &valid, long long &hop) {
-    hp.run_after_coarsen(valid, hop);
+void ipf_mt(HyPar &hp, bool &valid, long long &hop) {
+    if (hp.N < 1e4) {
+        hp.initial_partition();
+        hp.refine();
+    } else if (hp.N < 1e5) {
+        hp.fast_initial_partition();
+        hp.fast_refine();
+    } else {
+        hp.fast_initial_partition();
+        hp.only_fast_refine();
+    }
+    hp.evaluate_summary(valid, hop, std::cout);
+}
+
+void ofr_mt(HyPar &hp, bool &valid, long long &hop) {
+    hp.only_fast_refine();
+    hp.evaluate_summary(valid, hop, std::cout);
+}
+
+void ghg_mt(HyPar &hp, bool &valid, long long &hop) {
+    hp.greedy_hypergraph_growth(0);
+    hp.evaluate_summary(valid, hop, std::cout);
 }
 
 void limit_memory_usage() {
@@ -43,7 +63,13 @@ int main(int argc, char **argv) {
     }
     HyPar hp(inputDir, outputFile);
     auto start = std::chrono::high_resolution_clock::now();
-    hp.run_before_coarsen();
+    if (hp.N < 1e5) {
+        hp.preprocess();
+        hp.coarsen();
+    } else {
+        hp.fast_preprocess();
+        hp.fast_coarsen();
+    }
     auto end = std::chrono::high_resolution_clock::now();
     std::cout << "Before Coarsen: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << " s" << std::endl;
     std::cout << "Node: " << hp.N << std::endl;
@@ -60,7 +86,7 @@ int main(int argc, char **argv) {
                 hp_mt[i] = hp;
             }
             for (int i = 0; i < 4; ++i) {
-                threads[i] = std::thread(run_mt, std::ref(hp_mt[i]), std::ref(valid[i]), std::ref(hop[i]));
+                threads[i] = std::thread(ipf_mt, std::ref(hp_mt[i]), std::ref(valid[i]), std::ref(hop[i]));
             }
             for (int i = 0; i < 4; ++i) {
                 threads[i].join();
@@ -79,19 +105,23 @@ int main(int argc, char **argv) {
             }
         }
     } else {
+        hp.SCLa_propagation();
+        hp.evaluate_summary(std::cout);
         HyPar hp_mt[2]{};
-        std::thread threads[2];
-        bool valid[2], bestvalid = false;
-        long long hop[2], besthop = __LONG_LONG_MAX__;
+        std::thread threads[3];
+        bool valid[3], bestvalid = false;
+        long long hop[3], besthop = __LONG_LONG_MAX__;
         int bestid = -1;
-        while (!bestvalid) {
-            std::cout << "Starting threads..." << std::endl;
-            bestid = -1;
+        for (int r = 0; r < 2; ++r) {
+            std::cout << "Starting threads round " << r << std::endl;
             for (int i = 0; i < 2; ++i) {
                 hp_mt[i] = hp;
             }
             for (int i = 0; i < 2; ++i) {
-                threads[i] = std::thread(run_mt, std::ref(hp_mt[i]), std::ref(valid[i]), std::ref(hop[i]));
+                threads[i] = std::thread(ofr_mt, std::ref(hp_mt[i]), std::ref(valid[i]), std::ref(hop[i]));
+            }
+            if (r == 0) {
+                threads[2] = std::thread(ghg_mt, std::ref(hp), std::ref(valid[2]), std::ref(hop[2]));
             }
             for (int i = 0; i < 2; ++i) {
                 threads[i].join();
@@ -107,6 +137,11 @@ int main(int argc, char **argv) {
                 hp_mt[bestid].evaluate_summary(std::cout);
                 hp_mt[bestid].printOut();
                 break;
+            }
+            if (r == 0) {
+                threads[2].join();
+                hp.evaluate_summary(std::cout);
+                std::cout << "Thread 2 finished." << std::endl;
             }
         }
     }

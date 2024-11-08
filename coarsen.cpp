@@ -200,10 +200,6 @@ void HyPar::coarsen() {
 }
 
 void HyPar::fast_coarsen() {
-    while (coarsen_by_nets_in_community() && existing_nodes.size() >= static_cast<size_t>(K * parameter_t)) {
-        continue;
-    }
-    std::cout << "After coarsen: " << existing_nodes.size() << std::endl;
     while (coarsen_by_nets() && existing_nodes.size() >= static_cast<size_t>(K * parameter_t)) {
         continue;
     }
