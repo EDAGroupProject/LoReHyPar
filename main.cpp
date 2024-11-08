@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     HyPar hp(inputDir, outputFile);
-    std::vector<HyPar> hp_mt(4);
+    HyPar hp_mt[4]{};
     hp.run_before_coarsen();
     std::thread threads[4];
     bool valid[4], bestvalid = false;
@@ -39,8 +39,7 @@ int main(int argc, char **argv) {
     int bestid = -1;
     while (!bestvalid) {
         std::cout << "Starting threads..." << std::endl;
-        bestvalid = false;
-        besthop = __LONG_LONG_MAX__;
+        bestid = -1;
         for (int i = 0; i < 4; ++i) {
             hp_mt[i] = hp;
         }
@@ -56,10 +55,12 @@ int main(int argc, char **argv) {
                 bestvalid = valid[i];
             }
         }
+        if (bestvalid) {
+            std::cout << "Best thread: " << bestid << std::endl;
+            hp_mt[bestid].evaluate_summary(std::cout);
+            hp_mt[bestid].printOut();
+            break;
+        }
     }
-    std::cout << "Best thread: " << bestid << std::endl;
-    hp_mt[bestid].evaluate_summary(std::cout);
-    std::cout << "Start print: " << std::endl;
-    hp_mt[bestid].printOut();
     return 0;
 }

@@ -8,7 +8,6 @@
 
 HyPar::HyPar(std::string _inputDir, std::string _outputFile) : inputDir(_inputDir), outputFile(_outputFile) {
     std::ifstream info(inputDir + "/design.info"), are(inputDir + "/design.are"), net(inputDir + "/design.net"), topo(inputDir + "/design.topo");
-    assert(info && are && net && topo);
     readInfo(info);
     readAre(are);
     readNet(net);
@@ -17,9 +16,11 @@ HyPar::HyPar(std::string _inputDir, std::string _outputFile) : inputDir(_inputDi
 
 void HyPar::readInfo(std::ifstream &info) {
     std::string name;
+    fpgas.reserve(100);
     while(info >> name) {
         fpga2id[name] = fpgas.size();
-        fpgas.emplace_back(Fpga{name});
+        fpgas.emplace_back();
+        fpgas.back().name = name;
         info >> fpgas.back().maxConn;
         for (int i = 0; i < NUM_RES; ++i) {
             info >> fpgas.back().resCap[i];
@@ -34,9 +35,17 @@ void HyPar::readInfo(std::ifstream &info) {
 
 void HyPar::readAre(std::ifstream &are) {
     std::string name;
+    if (K <= 8) {
+        nodes.reserve(1e4);
+    } else if (K <= 32) {
+        nodes.reserve(2e5);
+    } else {
+        nodes.reserve(5e6);
+    }
     while(are >> name) {
         node2id[name] = nodes.size();
-        nodes.emplace_back(Node{name});
+        nodes.emplace_back();
+        nodes.back().name = name;
         for (int i = 0; i < NUM_RES; ++i) {
             are >> nodes.back().resLoad[i];
             mean_res[i] += nodes.back().resLoad[i];
@@ -52,6 +61,7 @@ void HyPar::readNet(std::ifstream &net) {
     std::string line;
     std::string name;
     int id;
+    nets.reserve(10 * nodes.size());
     while (std::getline(net, line)) {
         std::istringstream iss(line);
         nets.emplace_back();
@@ -104,123 +114,30 @@ void HyPar::readTopo(std::ifstream &topo) {
     }
 }
 
-void HyPar::printSummary(std::ostream &out) {
-    out << "Nodes: " << nodes.size() << std::endl;
-    for (size_t i = 0; i < nodes.size(); ++i) {
-        auto &node = nodes[i];
-        out << "  node " << i << ": " << node.name << ": " << node.rep << "\n    resLoad: ";
-        for (int i = 0; i < NUM_RES; ++i) {
-            out << node.resLoad[i] << " ";
-        }
-        out << "\n    nets: ";
-        for (auto net : node.nets) {
-            out << net << " ";
-        }
-        out << "\n    fpga: " << node.fpga << std::endl;
-    }
-    out << "Nets: " << nets.size() << std::endl;
-    for (size_t i = 0; i < nets.size(); ++i) {
-        auto &net = nets[i];
-        out << "  net " << i << ": \n    weight: ";
-        out << net.weight << "\n    size: ";
-        out << net.size << "\n    source: ";
-        out << net.source << "\n    nodes: ";
-        for (int node : net.nodes) {
-            out << node << " ";
-        }
-        out << "\n    existing nodes: ";
-        for (int j = 0; j < net.size; ++j) {
-            out << net.nodes[j] << " ";
-        }
-        out << std::endl;
-    }
-    out << "FPGAs: " << fpgas.size() << std::endl;
-    for (size_t i = 0; i < fpgas.size(); ++i) {
-        auto &fpga = fpgas[i];
-        out << "  fpga " << i << ": " << fpga.name << "\n    maxConn: " << fpga.maxConn << "\n    resCap: ";
-        for (int i = 0; i < NUM_RES; ++i) {
-            out << fpga.resCap[i] << " ";
-        }
-        out << "\n    resUsed: ";
-        for (int i = 0; i < NUM_RES; ++i) {
-            out << fpga.resUsed[i] << " ";
-        }
-        out << "\n    nodes: ";
-        for (auto node : fpga.nodes) {
-            out << node << " ";
-        }
-        out << std::endl;
-    }
-    out << "MaxHop: " << maxHop << std::endl;
-    out << "FPGA Map:\n";
-    for (auto &row : fpgaMap) {
-        out << "  ";
-        for (auto &cell : row) {
-            out << std::setw(3) << std::setfill(' ') << cell << " ";
-        }
-        out << std::endl;
-    }
-}
-
-void HyPar::printSummary(std::ofstream &out) {
-    out << "Nodes: " << nodes.size() << std::endl;
-    for (size_t i = 0; i < nodes.size(); ++i) {
-        auto &node = nodes[i];
-        out << "  node " << i << ": " << node.name << ": " << node.rep << "\n    resLoad: ";
-        for (int i = 0; i < NUM_RES; ++i) {
-            out << node.resLoad[i] << " ";
-        }
-        out << "\n    nets: ";
-        for (auto net : node.nets) {
-            out << net << " ";
-        }
-        out << "\n    fpga: " << node.fpga << std::endl;
-    }
-    out << "Nets: " << nets.size() << std::endl;
-    for (size_t i = 0; i < nets.size(); ++i) {
-        auto &net = nets[i];
-        out << "  net " << i << ": \n    weight: ";
-        out << net.weight << "\n    size: ";
-        out << net.size << "\n    source: ";
-        out << net.source << "\n    nodes: ";
-        for (int node : net.nodes) {
-            out << node << " ";
-        }
-        out << std::endl;
-    }
-    out << "FPGAs: " << fpgas.size() << std::endl;
-    for (size_t i = 0; i < fpgas.size(); ++i) {
-        auto &fpga = fpgas[i];
-        out << "  fpga " << i << ": " << fpga.name << "\n    maxConn: " << fpga.maxConn << "\n    resCap: ";
-        for (int i = 0; i < NUM_RES; ++i) {
-            out << fpga.resCap[i] << " ";
-        }
-        out << "\n    nodes: ";
-        for (auto node : fpga.nodes) {
-            out << node << " ";
-        }
-        out << std::endl;
-    }
-    out << "MaxHop: " << maxHop << std::endl;
-    out << "FPGA Map:\n";
-    for (auto &row : fpgaMap) {
-        out << "  ";
-        for (auto &cell : row) {
-            out << std::setw(3) << std::setfill(' ') << cell << " ";
-        }
-        out << std::endl;
-    }
-}
-
 void HyPar::printOut() {
+    std::cout << "Output file: " << outputFile << std::endl;
     std::ofstream out(outputFile);
     printOut(out);
 }
 
 void HyPar::printOut(std::ofstream &out) {
-    for (auto &fpga: fpgas) {
+    for (const auto &fpga: fpgas) {
         out << fpga.name << ": ";
-        for (auto node : fpga.nodes) {
+        for (int node : fpga.nodes) {
+            if(nodes[node].rep != -1) {
+                out << nodes[node].name << "* ";
+            }else{
+                out << nodes[node].name << " ";
+            }
+        }
+        out << std::endl;
+    }
+}
+
+void HyPar::printOut(std::ostream &out) {
+    for (const auto &fpga: fpgas) {
+        out << fpga.name << ": ";
+        for (int node : fpga.nodes) {
             if(nodes[node].rep != -1) {
                 out << nodes[node].name << "* ";
             }else{
@@ -798,7 +715,7 @@ void HyPar::evaluate_summary(bool &valid, long long &hop, std::ostream &out) {
         fpgas[f].conn = 0;
     }
     hop = 0;
-    for (auto &net : nets) {
+    for (const auto &net : nets) {
         int source = net.source;
         int sf = nodes[source].fpga;
         for (auto [f, cnt] : net.fpgas) {
@@ -815,7 +732,7 @@ void HyPar::evaluate_summary(bool &valid, long long &hop, std::ostream &out) {
             hop += net.weight * fpgaMap[sf][f];
         }
     }
-    for (auto &fpga : fpgas) {
+    for (const auto &fpga : fpgas) {
         if (fpga.resValid && fpga.conn <= fpga.maxConn) {
             out << "Valid FPGA: " << fpga.name << std::endl;
         } else {
@@ -840,7 +757,7 @@ void HyPar::evaluate_summary(std::ostream &out) {
         fpgas[f].conn = 0;
     }
     long long hop = 0;
-    for (auto &net : nets) {
+    for (const auto &net : nets) {
         int source = net.source;
         int sf = nodes[source].fpga;
         for (auto [f, cnt] : net.fpgas) {
@@ -857,7 +774,7 @@ void HyPar::evaluate_summary(std::ostream &out) {
             hop += net.weight * fpgaMap[sf][f];
         }
     }
-    for (auto &fpga : fpgas) {
+    for (const auto &fpga : fpgas) {
         if (fpga.resValid && fpga.conn <= fpga.maxConn) {
             out << "Valid FPGA: " << fpga.name << std::endl;
         } else {

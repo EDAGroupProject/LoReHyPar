@@ -24,3 +24,5 @@ if [ $? -eq 0 ]; then
 else
     echo "Build failed."
 fi
+
+./evaluator/evaluator -t "testcase/${CASE}" -s "testcase/${CASE}/design.fpga.out"

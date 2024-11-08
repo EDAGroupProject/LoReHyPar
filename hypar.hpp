@@ -37,12 +37,11 @@ struct Node {
     std::string name{};
     int rep{-1}; // -1: not a representative, >= 0: the representative
     int fpga{-1}; // easy to signal the partition
-    std::vector<double> resLoad{NUM_RES, 0.0};
+    double resLoad[NUM_RES]{};
     int size{1};
     int fp{};
-    std::unordered_set<int> nets{};
+    std::set<int> nets{};
     std::unordered_map<int, bool> isSou{};
-    ~Node() = default;
 };
 
 struct Net {
@@ -51,16 +50,14 @@ struct Net {
     int size{};
     std::vector<int> nodes{};
     std::unordered_map<int, int> fpgas{}; // help to calculate the connectivity
-    ~Net() = default;
 };
 
 struct Fpga {
     std::string name{};
     int maxConn{}, conn{};
-    std::vector<double> resCap{NUM_RES, 0.0}, resUsed{NUM_RES, 0.0};
+    double resCap[NUM_RES]{}, resUsed[NUM_RES]{};
     bool resValid{true}; // update after add or remove a node
     std::unordered_set<int> nodes{};
-    ~Fpga() = default;
 };
 
 class HyPar {
@@ -81,8 +78,8 @@ private:
     std::vector<std::unordered_set<int>> communities;
     std::unordered_map<int, int> node2community;
     std::stack<std::pair<int, int>> contract_memo;
-    std::vector<double> mean_res{NUM_RES, 0.0}, ceil_rescap{NUM_RES, 0.0};
-    double ceil_size{};
+    double ceil_rescap[NUM_RES]{}, ceil_size{};
+    double mean_res[NUM_RES]{};
 
     // basic operations
     void _contract(int u, int v);   // contract v into u
@@ -118,17 +115,14 @@ private:
 public:
     HyPar() = default;
     HyPar(std::string _inputDir, std::string _outputFile);
-    HyPar(const HyPar &other) = default;
-    ~HyPar() = default;
 
     void readInfo(std::ifstream &info);
     void readAre(std::ifstream &are);
     void readNet(std::ifstream &net);
     void readTopo(std::ifstream &topo);
 
-    void printSummary(std::ostream &out);
-    void printSummary(std::ofstream &out);
     void printOut();
+    void printOut(std::ostream &out);
     void printOut(std::ofstream &out);
 
     // Preprocessing

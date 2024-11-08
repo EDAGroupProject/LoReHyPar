@@ -374,18 +374,8 @@ void HyPar::fast_initial_partition() {
         minHop = hop;
     }
     std::cout << "SCLa Partition: " << hop << std::endl;
-    tmp.greedy_hypergraph_growth(0);
-    tmp.evaluate(valid, hop);
+    best.greedy_hypergraph_growth(0);
+    best.evaluate(valid, hop);
     std::cout << "Greedy Hypergraph Growth: " << hop << std::endl;
-    *this = std::move(tmp);
+    *this = std::move(best);
 }
-
-// how to meet the connectivity constraint?
-// @todo: use connectivity metric to initialize the partition
-// for a net, its connectivity equals to the size of the unordered_map fpgas
-
-// void HyPar::map_fpga() {
-//     // @todo: mapping fpga to the coarsest partition
-//     // maybe greedy algorithm is enough
-//     // currently, we just randomly assign nodes to fpgas
-// }
