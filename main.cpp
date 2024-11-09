@@ -1,8 +1,5 @@
 #include <hypar.hpp>
-#include <cassert>
-#include <iostream>
 #include <unistd.h>
-#include <thread>
 #include <memory>
 #include <sys/resource.h>
 
@@ -34,7 +31,7 @@ void limit_memory_usage() {
     }
 }
 
-void manage_memory_and_threads(HyPar &hp, size_t hp_memory, int num_threads = 4) {
+bool manage_memory_and_threads(HyPar &hp, size_t hp_memory, int num_threads = 4) {
     std::vector<std::shared_ptr<HyPar>> hp_mt;
     std::vector<std::thread> threads;
     bool valid[num_threads]{}, bestvalid = false;
@@ -63,9 +60,10 @@ void manage_memory_and_threads(HyPar &hp, size_t hp_memory, int num_threads = 4)
     }
     if (bestvalid) {
         std::cout << "Best thread: " << bestid << std::endl;
-        hp_mt[bestid]->evaluate_summary(std::cout);
         hp_mt[bestid]->printOut();
+        return true;
     }
+    return false;
 }
 
 int main(int argc, char **argv) {
@@ -97,8 +95,23 @@ int main(int argc, char **argv) {
     size_t m1 = get_memory_usage();
     size_t memory_usage = m1 - m0;
     std::cout << "Memory usage: " << memory_usage << std::endl;
-    std::cout << "num_threads: " << static_cast<int>(MEMORY_LIMIT /  memory_usage) - 1 << std::endl;
-    const int num_threads = std::max(1, std::min(4, static_cast<int>(MEMORY_LIMIT /  memory_usage) - 1));
-    manage_memory_and_threads(hp, memory_usage, num_threads);
+    const int num_threads = std::min(4, static_cast<int>(MEMORY_LIMIT /  memory_usage) - 1);
+    std::cout << "num_threads: " << num_threads << std::endl;
+    if (num_threads >= 1) {
+        while (!manage_memory_and_threads(hp, memory_usage, num_threads)) {
+            std::cout << "Run with " << num_threads << " threads." << std::endl;
+        } 
+    } else {
+        std::cout << "Run with 1 thread." << std::endl;
+        bool valid = false;
+        long long hop = 0;
+        hp.run_after_coarsen(valid, hop);
+        while (!valid) {
+            std::cout << "Run with 1 thread." << std::endl;
+            hp.reread();
+            hp.run(valid, hop);
+        }
+        hp.printOut();
+    }
     return 0;
 }

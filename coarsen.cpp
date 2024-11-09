@@ -1,5 +1,4 @@
 #include <hypar.hpp>
-#include <algorithm>
 
 bool HyPar::coarsen_by_nets() {
     bool contFlag = false;

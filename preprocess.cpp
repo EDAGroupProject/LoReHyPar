@@ -1,7 +1,5 @@
 #include <hypar.hpp>
 #include <Louvain.hpp>
-#include <cmath>
-#include <algorithm>
 
 void HyPar::community_detect() {
     Louvain lv(nets.size() + existing_nodes.size());

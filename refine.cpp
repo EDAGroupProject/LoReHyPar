@@ -1,8 +1,4 @@
 #include <hypar.hpp>
-#include <algorithm>
-#include <cmath>
-#include <climits>
-#include <cassert>
 
 void HyPar::k_way_localized_refine(int sel) {
     auto [u, v] = contract_memo.top();
@@ -181,29 +177,18 @@ void HyPar::refine() {
     while (!contract_memo.empty()) {
         k_way_localized_refine(0);
     }
-    evaluate_summary(std::cout);
 }
 
 void HyPar::fast_refine() {
-    int cnt = 0;
     while (!contract_memo.empty()) {
         int num = std::sqrt(contract_memo.size());
-        auto start = std::chrono::high_resolution_clock::now();
         fast_k_way_localized_refine(num, 0);
-        auto end = std::chrono::high_resolution_clock::now();
-        std::cout << "fast refine " << cnt++ << " time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
     }
-    evaluate_summary(std::cout);
 }
 
 void HyPar::only_fast_refine() {
-    int cnt = 0;
     while (!contract_memo.empty()) {
         int num = std::sqrt(contract_memo.size());
-        auto start = std::chrono::high_resolution_clock::now();
         only_fast_k_way_localized_refine(num, 0);
-        auto end = std::chrono::high_resolution_clock::now();
-        std::cout << "only fast refine " << cnt++ << " time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
     }
-    evaluate_summary(std::cout);
 }

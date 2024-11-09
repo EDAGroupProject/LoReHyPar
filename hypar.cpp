@@ -1,10 +1,4 @@
 #include <hypar.hpp>
-#include <algorithm>
-#include <cassert>
-#include <cstring>
-#include <climits>
-#include <iomanip>
-#include <sstream>
 
 HyPar::HyPar(std::string _inputDir, std::string _outputFile) : inputDir(_inputDir), outputFile(_outputFile) {
     std::ifstream info(inputDir + "/design.info"), are(inputDir + "/design.are"), net(inputDir + "/design.net"), topo(inputDir + "/design.topo");
@@ -14,10 +8,31 @@ HyPar::HyPar(std::string _inputDir, std::string _outputFile) : inputDir(_inputDi
     readTopo(topo);
 }
 
+void HyPar::reread() {
+    std::ifstream info(inputDir + "/design.info"), are(inputDir + "/design.are"), net(inputDir + "/design.net"), topo(inputDir + "/design.topo");
+    //clear
+    fpgas.clear();
+    fpga2id.clear();
+    nodes.clear();
+    node2id.clear();
+    nets.clear();
+    fpgaMap.clear();
+    contract_memo = std::stack<std::pair<int, int>>();
+    existing_nodes.clear();
+    node2community.clear();
+    memset(ceil_rescap, 0, sizeof(ceil_rescap));
+    memset(mean_res, 0, sizeof(mean_res));
+    //read
+    readInfo(info);
+    readAre(are);
+    readNet(net);
+    readTopo(topo);
+}
+
 void HyPar::readInfo(std::ifstream &info) {
     std::string name;
-    fpgas.reserve(100);
-    fpga2id.reserve(100);
+    fpgas.reserve(64);
+    fpga2id.reserve(64);
     while(info >> name) {
         fpga2id[name] = fpgas.size();
         fpgas.emplace_back();
@@ -40,11 +55,11 @@ void HyPar::readAre(std::ifstream &are) {
         nodes.reserve(1e4);
         node2id.reserve(1e4);
     } else if (K <= 32) {
-        nodes.reserve(2e5);
-        node2id.reserve(2e5);
+        nodes.reserve(1e5);
+        node2id.reserve(1e5);
     } else {
-        nodes.reserve(5e6);
-        node2id.reserve(5e6);
+        nodes.reserve(1e6);
+        node2id.reserve(1e6);
     }
     while(are >> name) {
         node2id[name] = nodes.size();
@@ -59,7 +74,7 @@ void HyPar::readAre(std::ifstream &are) {
         mean_res[i] = mean_res[i] / nodes.size();
     }
     N = nodes.size();
-    ceil_size = double(nodes.size()) / (K * parameter_t);
+    ceil_size = double(N) / (K * parameter_t);
     existing_nodes.reserve(N);
     node2community.reserve(N);
 }
@@ -68,7 +83,7 @@ void HyPar::readNet(std::ifstream &net) {
     std::string line;
     std::string name;
     int id;
-    nets.reserve(10 * nodes.size());
+    nets.reserve(2 * N);
     while (std::getline(net, line)) {
         std::istringstream iss(line);
         nets.emplace_back();
@@ -120,26 +135,11 @@ void HyPar::readTopo(std::ifstream &topo) {
 }
 
 void HyPar::printOut() {
-    std::cout << "Output file: " << outputFile << std::endl;
     std::ofstream out(outputFile);
     printOut(out);
 }
 
 void HyPar::printOut(std::ofstream &out) {
-    for (const auto &fpga: fpgas) {
-        out << fpga.name << ": ";
-        for (int node : fpga.nodes) {
-            if(nodes[node].rep != -1) {
-                out << nodes[node].name << "* ";
-            }else{
-                out << nodes[node].name << " ";
-            }
-        }
-        out << std::endl;
-    }
-}
-
-void HyPar::printOut(std::ostream &out) {
     for (const auto &fpga: fpgas) {
         out << fpga.name << ": ";
         for (int node : fpga.nodes) {
@@ -180,30 +180,6 @@ void HyPar::_contract(int u, int v) {
                 *vit = nets[net].nodes[--nets[net].size];
                 nets[net].nodes[nets[net].size] = v;
             }
-        }
-    }
-}
-
-void HyPar::_uncontract(int u, int v) {
-    contract_memo.pop();
-    nodes[u].size -= nodes[v].size;
-    existing_nodes.insert(v);
-    for (int i = 0; i < NUM_RES; ++i) {
-        nodes[u].resLoad[i] -= nodes[v].resLoad[i];
-    }
-    std::set<int> secNets;
-    std::set_intersection(nodes[u].nets.begin(), nodes[u].nets.end(), nodes[v].nets.begin(), nodes[v].nets.end(), std::inserter(secNets, secNets.begin()));
-    for (int net : secNets) {
-        if (nodes[v].isSou[net]) {
-            nets[net].source = v;
-            nodes[u].isSou[net] = false;
-        }
-        if (static_cast<int>(nets[net].nodes.size()) == nets[net].size || nets[net].nodes[nets[net].size] != v) { // v is relinked
-            auto uit = std::find(nets[net].nodes.begin(), nets[net].nodes.end(), u);
-            *uit = v;
-            nodes[u].nets.erase(net);
-        }else{ // v is deleted
-            ++nets[net].size;
         }
     }
 }
@@ -293,24 +269,6 @@ long long HyPar::_fpga_cal_conn() {
         }
     }
     return conn;
-}
-
-bool HyPar::_fpga_chk_conn() {
-    for (int i = 0; i < K; ++i) {
-        if (fpgas[i].conn > fpgas[i].maxConn) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool HyPar::_fpga_chk_res() {
-    for (int i = 0; i < K; ++i) {
-        if (!fpgas[i].resValid) {
-            return false;
-        } 
-    }
-    return true;
 }
 
 // GHG gain functions
@@ -609,126 +567,6 @@ void HyPar::_get_eligible_fpga(int u, std::unordered_map<int, bool> &tfs) {
     }
 }
 
-bool HyPar::_chk_legel_put() {
-    std::unordered_map<int, bool> node_existed;
-    for (int i = 0; i < K; ++i) {
-        for (int node : fpgas[i].nodes) {
-            if (node_existed[node]) {
-                return false;
-            }
-            node_existed[node] = true;
-        }
-    }
-    return true;
-}
-
-bool HyPar::_chk_net_fpgas() {
-    bool flag = true;
-    for (auto &net : nets) {
-        std::unordered_map<int, int> fgpas;
-        for (int u : net.nodes) {
-            if (nodes[u].fpga != -1) {
-                fgpas[nodes[u].fpga]++;
-            }
-        }
-        for (auto [f, cnt] : net.fpgas) {
-            if (cnt && cnt != fgpas[f]) {
-                flag = false;
-                std::cout << "Net " << &net - &nets[0] << " fpga " << f << " count " << cnt << " != " << fgpas[f] << std::endl;
-            }
-        }
-    }
-    return flag;
-}
-
-void HyPar::evaluate_summary(bool &valid, long long &hop, std::ostream &out) {
-    valid = true;
-    for (int f = 0; f < K; ++f) {
-        fpgas[f].conn = 0;
-    }
-    hop = 0;
-    for (const auto &net : nets) {
-        int source = net.source;
-        int sf = nodes[source].fpga;
-        for (auto [f, cnt] : net.fpgas) {
-            if (!cnt) {
-                continue;
-            }
-            if (cnt < net.size) {
-                fpgas[f].conn += net.weight;
-            }
-            if (fpgaMap[sf][f] > maxHop) {
-                valid = false;
-                out << "Errors happens between " << nodes[source].name << " and " << fpgas[f].name <<"  No path between " << sf << " and " << f << std::endl;
-            }
-            hop += net.weight * fpgaMap[sf][f];
-        }
-    }
-    for (const auto &fpga : fpgas) {
-        if (fpga.resValid && fpga.conn <= fpga.maxConn) {
-            out << "Valid FPGA: " << fpga.name << std::endl;
-        } else {
-            valid = false;
-            out << "Invalid FPGA: " << fpga.name << std::endl;
-            for (int i = 0; i < NUM_RES; ++i) {
-                if (fpga.resUsed[i] > fpga.resCap[i]) {
-                    out << "Resource " << i << " exceeds the capacity: " << fpga.resUsed[i] << " > " << fpga.resCap[i] << std::endl;
-                }
-            }
-            if (fpga.conn > fpga.maxConn) {
-                out << "Connection exceeds the capacity: " << fpga.conn << " > " << fpga.maxConn << std::endl;
-            }
-        }
-    }
-    out << "Total Hop: " << hop << std::endl;
-}
-
-void HyPar::evaluate_summary(std::ostream &out) {
-    bool valid = true;
-    for (int f = 0; f < K; ++f) {
-        fpgas[f].conn = 0;
-    }
-    long long hop = 0;
-    for (const auto &net : nets) {
-        int source = net.source;
-        int sf = nodes[source].fpga;
-        for (auto [f, cnt] : net.fpgas) {
-            if (!cnt) {
-                continue;
-            }
-            if (cnt < net.size) {
-                fpgas[f].conn += net.weight;
-            }
-            if (fpgaMap[sf][f] > maxHop) {
-                valid = false;
-                out << "Errors happens between " << nodes[source].name << " and " << fpgas[f].name <<"  No path between " << sf << " and " << f << std::endl;
-            }
-            hop += net.weight * fpgaMap[sf][f];
-        }
-    }
-    for (const auto &fpga : fpgas) {
-        if (fpga.resValid && fpga.conn <= fpga.maxConn) {
-            out << "Valid FPGA: " << fpga.name << std::endl;
-        } else {
-            out << "Invalid FPGA: " << fpga.name << std::endl;
-            for (int i = 0; i < NUM_RES; ++i) {
-                if (fpga.resUsed[i] > fpga.resCap[i]) {
-                    out << "Resource " << i << " exceeds the capacity: " << fpga.resUsed[i] << " > " << fpga.resCap[i] << std::endl;
-                }
-            }
-            if (fpga.conn > fpga.maxConn) {
-                out << "Connection exceeds the capacity: " << fpga.conn << " > " << fpga.maxConn << std::endl;
-            }
-        }
-    }
-    out << "Total Hop: " << hop << std::endl;
-    if (valid) {
-        out << "Valid Solution!" << std::endl;
-    } else {
-        out << "Invalid Solution!" << std::endl;
-    }
-}
-
 void HyPar::evaluate(bool &valid, long long &hop) {
     valid = true;
     for (int f = 0; f < K; ++f) {
@@ -774,11 +612,30 @@ void HyPar::run() {
         fast_refine();
     } else {
         preprocess();
-        coarsen();
-        fast_initial_partition();
+        fast_coarsen();
+        SCLa_propagation();
         only_fast_refine();
     }
-    evaluate_summary(std::cout);
+}
+
+void HyPar::run(bool &valid, long long &hop) {
+    if (nodes.size() < 1e4) {
+        preprocess();
+        coarsen();
+        initial_partition();
+        refine();
+    } else if (nodes.size() < 1e5) {
+        preprocess();
+        coarsen();
+        fast_initial_partition();
+        fast_refine();
+    } else {
+        preprocess();
+        fast_coarsen();
+        SCLa_propagation();
+        only_fast_refine();
+    }
+    evaluate(valid, hop);
 }
 
 void HyPar::run_before_coarsen() {
@@ -800,9 +657,7 @@ void HyPar::run_after_coarsen(bool &valid, long long &hop) {
         fast_refine();
     } else {
         SCLa_propagation();
-        evaluate(valid, hop);
-        std::cout << "SCLa Partition: " << hop << std::endl;
         only_fast_refine();
     }
-    evaluate_summary(valid, hop, std::cout);
+    evaluate(valid, hop);
 }

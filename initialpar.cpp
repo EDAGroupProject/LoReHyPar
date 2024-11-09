@@ -1,6 +1,4 @@
 #include <hypar.hpp>
-#include <climits>
-#include <algorithm>
 
 void HyPar::bfs_partition() {
     std::vector<int> nodeVec(existing_nodes.begin(), existing_nodes.end());
@@ -214,8 +212,6 @@ void HyPar::SCLa_propagation() {
     }
 }
 
-// maybe consider global and sequential later
-// for now, I copied the refine.cpp to here, which definitely needs to be modified
 void HyPar::greedy_hypergraph_growth(int sel) { // I use this based on the former initial partition results
     std::vector<std::pair<int,int>> move_seq; // (node, from_fpga)
     std::unordered_map<int, int> node_state; // 0: inactive, 1: active, 2: locked
@@ -368,7 +364,6 @@ void HyPar::activate_max_hop_nodes(int sel) {
     }
 }
 
-// @todo: other partitioning methods to enrich the portfolio
 void HyPar::initial_partition() {
     bool bestvalid = false, valid;
     long long minHop = LONG_LONG_MAX, hop;
@@ -377,23 +372,21 @@ void HyPar::initial_partition() {
         tmp = *this;
         tmp.bfs_partition();
         tmp.evaluate(valid, hop);
-        if ((!bestvalid || valid) && (hop < minHop)) {
+        if (bestvalid <= valid && hop < minHop) {
             best = tmp;
             bestvalid = valid;
             minHop = hop;
         }
-        std::cout << "BFS Partition: " << hop << std::endl;
     }
     for (int i = 0; i < 10; ++i){
         tmp = *this;
         tmp.SCLa_propagation();
         tmp.evaluate(valid, hop);
-        if ((!bestvalid || valid) && (hop < minHop)) {
+        if (bestvalid <= valid && hop < minHop) {
             best = tmp;
             bestvalid = valid;
             minHop = hop;
         }
-        std::cout << "SCLa Partition: " << hop << std::endl;
     }
     tmp = best;
     bool flag = true;
@@ -401,8 +394,7 @@ void HyPar::initial_partition() {
         flag = false;
         tmp.greedy_hypergraph_growth(0);
         tmp.evaluate(valid, hop);
-        std::cout << "Greedy Hypergraph Growth: " << hop << std::endl;
-        if ((!bestvalid || valid) && (hop < minHop)) {
+        if (bestvalid <= valid && hop < minHop) {
             flag = true;
             best = tmp;
             bestvalid = valid;
@@ -410,22 +402,23 @@ void HyPar::initial_partition() {
         }
     }
     *this = std::move(best);
-    std::cout << "Initial Partition: " << minHop << std::endl;
     activate_max_hop_nodes(0);
-    evaluate(valid, hop);
-    std::cout << "Activate Max Hop Nodes: " << hop << std::endl;
 }
 
 void HyPar::fast_initial_partition() {
-    bool valid;
-    long long hop;
+    bool valid, bestvalid = false;
+    long long hop, minHop = LONG_LONG_MAX;
     SCLa_propagation();
-    evaluate(valid, hop);
-    std::cout << "SCLa Partition: " << hop << std::endl;
-    greedy_hypergraph_growth(0);
-    evaluate(valid, hop);
-    std::cout << "Greedy Hypergraph Growth: " << hop << std::endl;
+    bool flag = true;
+    while (flag) {
+        flag = false;
+        greedy_hypergraph_growth(0);
+        evaluate(valid, hop);
+        if (bestvalid <= valid && hop < minHop) {
+            flag = true;
+            bestvalid = valid;
+            minHop = hop;
+        }
+    }
     activate_max_hop_nodes(0);
-    evaluate(valid, hop);
-    std::cout << "Activate Max Hop Nodes: " << hop << std::endl;
 }

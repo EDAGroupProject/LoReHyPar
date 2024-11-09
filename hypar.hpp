@@ -2,6 +2,7 @@
 #define _HYPAR_FLAG
 
 #include <fstream>
+#include <sstream>
 #include <iostream>
 #include <random>
 #include <chrono>
@@ -9,10 +10,14 @@
 #include <queue>
 #include <stack>
 #include <string>
+#include <cstring>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include <cassert>
+#include <algorithm>
+#include <cmath>
+#include <climits>
 #include <thread>
 
 #define NUM_RES 8
@@ -83,14 +88,11 @@ private:
     // basic operations
     void _contract(int u, int v);   // contract v into u
     void _uncontract(int u, int v); // uncontract v from u
-    void _uncontract(int u, int v, int f);  // uncontract v from u
     bool _contract_eligible(int u, int v); // check if u and v are eligible to be contracted
     bool _fpga_add_try(int f, int u);
     bool _fpga_add_force(int f, int u);
     bool _fpga_remove_force(int f, int u);
     long long _fpga_cal_conn();
-    bool _fpga_chk_conn();
-    bool _fpga_chk_res();
     int _max_net_gain(int tf, int u);
     int _FM_gain(int of, int tf, int u);
     int _hop_gain(int of, int tf, int u);
@@ -105,8 +107,6 @@ private:
     void _cal_gain(int u, int f, int sel, std::priority_queue<std::tuple<int, int, int>> &gain_map);
     void _get_eligible_fpga(int u, std::unordered_set<int> &toFpga);
     void _get_eligible_fpga(int u, std::unordered_map<int, bool> &toFpga);
-    bool _chk_legel_put();
-    bool _chk_net_fpgas();
 
 public:
     HyPar() = default;
@@ -114,13 +114,13 @@ public:
 
     int N; // number of nodes
 
+    void reread();
     void readInfo(std::ifstream &info);
     void readAre(std::ifstream &are);
     void readNet(std::ifstream &net);
     void readTopo(std::ifstream &topo);
 
     void printOut();
-    void printOut(std::ostream &out);
     void printOut(std::ofstream &out);
 
     // Preprocessing
@@ -150,10 +150,9 @@ public:
     void only_fast_k_way_localized_refine(int num, int sel);
 
     void run();
+    void run(bool &valid, long long &hop);
     void run_before_coarsen();
     void run_after_coarsen(bool &valid, long long &hop);
-    void evaluate_summary(std::ostream &out);
-    void evaluate_summary(bool &valid, long long &hop, std::ostream &out);
     void evaluate(bool &valid, long long &hop);
 };
 
