@@ -61,9 +61,7 @@ void HyPar::readAre(std::ifstream &are) {
     N = nodes.size();
     ceil_size = double(nodes.size()) / (K * parameter_t);
     existing_nodes.reserve(N);
-    deleted_nodes.reserve(N);
     node2community.reserve(N);
-    communities.reserve(K);
 }
 
 void HyPar::readNet(std::ifstream &net) {
@@ -80,13 +78,11 @@ void HyPar::readNet(std::ifstream &net) {
         nets.back().source = id;
         nodes[id].nets.insert(nets.size() - 1);
         nodes[id].isSou[nets.size() - 1] = true;
-        nodes[id].fp += (nets.size() - 1) * (nets.size() - 1);
         iss >> nets.back().weight;
         while (iss >> name) {
             id = node2id[name];
             nets.back().nodes.emplace_back(id);
             nodes[id].nets.insert(nets.size() - 1);
-            nodes[id].fp += (nets.size() - 1) * (nets.size() - 1);
         }
         nets.back().size = nets.back().nodes.size();
     }
@@ -161,7 +157,6 @@ void HyPar::_contract(int u, int v) {
     contract_memo.push({u, v});
     nodes[u].size += nodes[v].size;
     existing_nodes.erase(v);
-    deleted_nodes.insert(v);
     for (int i = 0; i < NUM_RES; ++i) {
         nodes[u].resLoad[i] += nodes[v].resLoad[i];
     }
@@ -189,45 +184,10 @@ void HyPar::_contract(int u, int v) {
     }
 }
 
-void HyPar::_contract_with_nodefp(int u, int v) {
-    contract_memo.push({u, v});
-    nodes[u].size += nodes[v].size;
-    existing_nodes.erase(v);
-    deleted_nodes.insert(v);
-    for (int i = 0; i < NUM_RES; ++i) {
-        nodes[u].resLoad[i] += nodes[v].resLoad[i];
-    }
-    for (int net : nodes[v].nets) {
-        if (nets[net].size == 1) { // v is the only node in the net, relink (u, net)
-            nets[net].nodes[0] = u;
-            nets[net].source = u;
-            nodes[u].nets.insert(net);
-            nodes[u].isSou[net] = true;
-            nodes[u].fp += net * net;
-        }else{
-            auto vit = std::find(nets[net].nodes.begin(), nets[net].nodes.end(), v);
-            if (nodes[v].isSou[net]) {
-                nets[net].source = u;
-                nodes[u].isSou[net] = true;
-            }
-            if (!nodes[u].nets.count(net)) { // u is not in the net, relink (u, net)
-                *vit = u;
-                nodes[u].nets.insert(net);
-                nodes[u].fp += net * net;    
-            }
-            else{ // u is in the net, delete v
-                *vit = nets[net].nodes[--nets[net].size];
-                nets[net].nodes[nets[net].size] = v;
-            }
-        }
-    }
-}
-
 void HyPar::_uncontract(int u, int v) {
     contract_memo.pop();
     nodes[u].size -= nodes[v].size;
     existing_nodes.insert(v);
-    deleted_nodes.erase(v);
     for (int i = 0; i < NUM_RES; ++i) {
         nodes[u].resLoad[i] -= nodes[v].resLoad[i];
     }
@@ -242,7 +202,6 @@ void HyPar::_uncontract(int u, int v) {
             auto uit = std::find(nets[net].nodes.begin(), nets[net].nodes.end(), u);
             *uit = v;
             nodes[u].nets.erase(net);
-            nodes[u].fp -= net * net;
         }else{ // v is deleted
             ++nets[net].size;
         }
@@ -255,7 +214,6 @@ void HyPar::_uncontract(int u, int v, int f) {
     nodes[v].fpga = f;
     fpgas[f].nodes.insert(v);
     existing_nodes.insert(v);
-    deleted_nodes.erase(v);
     for (int i = 0; i < NUM_RES; ++i) {
         nodes[u].resLoad[i] -= nodes[v].resLoad[i];
     }
@@ -270,46 +228,11 @@ void HyPar::_uncontract(int u, int v, int f) {
             auto uit = std::find(nets[net].nodes.begin(), nets[net].nodes.end(), u);
             *uit = v;
             nodes[u].nets.erase(net);
-            // nodes[u].fp -= net * net; // @note: no need to update fp
         }else{ // v is deleted
             ++nets[net].size;
             ++nets[net].fpgas[f];
         }
     }
-}
-
-float HyPar::_heavy_edge_rating(int u, int v) {
-    std::set<int> secNets;
-    std::set_intersection(nodes[u].nets.begin(), nodes[u].nets.end(), nodes[v].nets.begin(), nodes[v].nets.end(), std::inserter(secNets, secNets.begin()));
-    float rating = 0;
-    for (int net : secNets) {
-        if (nets[net].size > parameter_l) {
-            continue;
-        }
-        rating += (float) nets[net].weight / (nets[net].size - 1); // nets[net].size >= 2
-    }
-    return rating;
-}
-
-// u < v
-float HyPar::_heavy_edge_rating(int u, int v, std::unordered_map<std::pair<int, int>, int, pair_hash> &rating) {
-    if (rating.count({u, v})) {
-        return rating[{u, v}];
-    }
-    std::set<int> secNets;
-    std::set_intersection(nodes[u].nets.begin(), nodes[u].nets.end(), nodes[v].nets.begin(), nodes[v].nets.end(), std::inserter(secNets, secNets.begin()));
-    if (secNets.empty()) {
-        return 0;
-    }
-    float _rating = 0;
-    for (int net : secNets) {
-        if (nets[net].size > parameter_l) {
-            continue;
-        }
-        _rating += (float) nets[net].weight / (nets[net].size - 1); // nets[net].size >= 2
-    }
-    rating[{u, v}] = _rating;
-    return _rating;
 }
 
 bool HyPar::_contract_eligible(int u, int v) {
@@ -861,7 +784,7 @@ void HyPar::run_before_coarsen() {
         preprocess();
         coarsen();
     } else {
-        fast_preprocess();
+        preprocess();
         fast_coarsen();
     }
 }

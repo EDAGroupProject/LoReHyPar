@@ -40,7 +40,6 @@ struct Node {
     int fpga{-1}; // easy to signal the partition
     double resLoad[NUM_RES]{};
     int size{1};
-    int fp{};
     std::set<int> nets{};
     std::unordered_map<int, bool> isSou{};
 };
@@ -75,8 +74,7 @@ private:
     int parameter_t = 2; // parameter in the calculation of ceilRes
     int parameter_l = 20; // parameter, do not evaluate nets with size more than parameter_l
     int parameter_tau = 5; // parameter, in SCLa propagation, the tau of the neighbors get the same label
-    std::unordered_set<int> existing_nodes, deleted_nodes;
-    std::vector<std::unordered_set<int>> communities;
+    std::unordered_set<int> existing_nodes;
     std::unordered_map<int, int> node2community;
     std::stack<std::pair<int, int>> contract_memo;
     double ceil_rescap[NUM_RES]{}, ceil_size{};
@@ -84,11 +82,8 @@ private:
 
     // basic operations
     void _contract(int u, int v);   // contract v into u
-    void _contract_with_nodefp(int u, int v); // contract v into u
     void _uncontract(int u, int v); // uncontract v from u
     void _uncontract(int u, int v, int f);  // uncontract v from u
-    float _heavy_edge_rating(int u, int v); // rate the pair (u, v) "heavy edge"
-    float _heavy_edge_rating(int u, int v, std::unordered_map<std::pair<int, int>, int, pair_hash> &rating); // rate the pair (u, v) "heavy edge"
     bool _contract_eligible(int u, int v); // check if u and v are eligible to be contracted
     bool _fpga_add_try(int f, int u);
     bool _fpga_add_force(int f, int u);
@@ -130,24 +125,11 @@ public:
 
     // Preprocessing
     void preprocess();
-    void fast_preprocess();
-    void pin_sparsify();
-    void pin_sparsify_in_community(int community, int c_min, int c_max);
-    void fast_pin_sparsify();
-    void fast_pin_sparsify_in_community(int community, int c_min);
-    void fast_pin_sparsify_in_community(std::unordered_set<int> &community, int c_min, int c_max);
-    int community_detect();
-    void contract_in_community(int community);
-    void contract_in_community(const std::unordered_set<int> &community, std::unordered_set<int> &active_nodes);
+    void community_detect();
 
     // Coarsening
     void coarsen();
     void fast_coarsen();
-    bool _coarsen_naive();
-    void coarsen_naive();
-    bool coarsen_in_community(int community);
-    bool fast_coarsen_in_community(int community);
-    bool naive_coarsen_in_community(int community);
     bool coarsen_by_nets();
     bool coarsen_by_nets_in_community();
 
@@ -157,16 +139,15 @@ public:
     void bfs_partition();
     void SCLa_propagation();
     void greedy_hypergraph_growth(int sel);
+    void fast_greedy_hypergraph_growth(int sel);
 
     // Refinement
     void refine();
     void fast_refine();
     void only_fast_refine();
-    void refine_naive();
     void k_way_localized_refine(int sel);
     void fast_k_way_localized_refine(int num, int sel);
     void only_fast_k_way_localized_refine(int num, int sel);
-    bool fast_refine_max_hop();
 
     void run();
     void run_before_coarsen();

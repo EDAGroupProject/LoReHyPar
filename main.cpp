@@ -5,35 +5,8 @@
 #include <thread>
 #include <sys/resource.h>
 
-void ipf_mt(HyPar &hp, bool &valid, long long &hop) {
-    if (hp.N < 1e4) {
-        hp.initial_partition();
-        hp.refine();
-    } else if (hp.N < 1e5) {
-        hp.fast_initial_partition();
-        hp.fast_refine();
-    } else {
-        hp.SCLa_propagation();
-        hp.evaluate(valid, hop);
-        std::cout << "After SCLa: " << valid << " " << hop << std::endl;
-        hp.only_fast_refine();
-    }
-    hp.evaluate_summary(valid, hop, std::cout);
-}
-
-void ofr_mt(HyPar &hp, bool &valid, long long &hop) {
-    hp.only_fast_refine();
-    hp.evaluate_summary(valid, hop, std::cout);
-}
-
-void fr_mt(HyPar &hp, bool &valid, long long &hop) {
-    hp.fast_refine();
-    hp.evaluate_summary(valid, hop, std::cout);
-}
-
-void ghg_mt(HyPar &hp, bool &valid, long long &hop) {
-    hp.greedy_hypergraph_growth(0);
-    hp.evaluate_summary(valid, hop, std::cout);
+void run_mt(HyPar &hp, bool &valid, long long &hop) {
+    hp.run_after_coarsen(valid, hop);
 }
 
 void limit_memory_usage() {
@@ -70,13 +43,7 @@ int main(int argc, char **argv) {
     }
     HyPar hp(inputDir, outputFile);
     auto start = std::chrono::high_resolution_clock::now();
-    if (hp.N < 1e5) {
-        hp.preprocess();
-        hp.coarsen();
-    } else {
-        hp.fast_preprocess();
-        hp.fast_coarsen();
-    }
+    hp.run_before_coarsen();
     auto end = std::chrono::high_resolution_clock::now();
     std::cout << "Before Coarsen: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << " s" << std::endl;
     start = std::chrono::high_resolution_clock::now();
@@ -93,7 +60,7 @@ int main(int argc, char **argv) {
                 hp_mt[i] = hp;
             }
             for (int i = 0; i < 4; ++i) {
-                threads[i] = std::thread(ipf_mt, std::ref(hp_mt[i]), std::ref(valid[i]), std::ref(hop[i]));
+                threads[i] = std::thread(run_mt, std::ref(hp_mt[i]), std::ref(valid[i]), std::ref(hop[i]));
             }
             for (int i = 0; i < 4; ++i) {
                 threads[i].join();
@@ -124,7 +91,7 @@ int main(int argc, char **argv) {
                 hp_mt[i] = hp;
             }
             for (int i = 0; i < 2; ++i) {
-                threads[i] = std::thread(ipf_mt, std::ref(hp_mt[i]), std::ref(valid[i]), std::ref(hop[i]));
+                threads[i] = std::thread(run_mt, std::ref(hp_mt[i]), std::ref(valid[i]), std::ref(hop[i]));
             }
             for (int i = 0; i < 2; ++i) {
                 threads[i].join();
