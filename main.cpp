@@ -34,24 +34,22 @@ void limit_memory_usage() {
     }
 }
 
-void manage_memory_and_threads(HyPar &hp, int num_threads = 4) {
+void manage_memory_and_threads(HyPar &hp, size_t hp_memory, int num_threads = 4) {
     std::vector<std::shared_ptr<HyPar>> hp_mt;
     std::vector<std::thread> threads;
     bool valid[num_threads]{}, bestvalid = false;
     long long hop[num_threads]{}, besthop = __LONG_LONG_MAX__;
     for (int i = 0; i < num_threads; ++i) {
-        size_t memory_usage = get_memory_usage();
-        std::cout << "Memory usage: " << memory_usage << std::endl;
-        if (memory_usage >= MEMORY_LIMIT) {
-            std::cout << "Memory limit reached, releasing an object..." << std::endl;
-            if (!hp_mt.empty()) {
-                hp_mt.pop_back();
-            }
-        }
         auto hp_instance = std::make_shared<HyPar>(hp);
         hp_mt.push_back(hp_instance);
         threads.emplace_back(run_mt, std::ref(*hp_mt.back()), std::ref(valid[i]), std::ref(hop[i]));
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        size_t memory_usage = get_memory_usage();
+        std::cout << "Memory usage: " << memory_usage << std::endl;
+        if (memory_usage + hp_memory >= MEMORY_LIMIT) {
+            std::cout << "Memory limit reached, stop pushing hp" << std::endl;
+            break;
+        }
     }
     int bestid = -1;
     for (size_t i = 0; i < threads.size(); ++i) {
@@ -101,6 +99,6 @@ int main(int argc, char **argv) {
     std::cout << "Memory usage: " << memory_usage << std::endl;
     std::cout << "num_threads: " << static_cast<int>(MEMORY_LIMIT /  memory_usage) - 1 << std::endl;
     const int num_threads = std::max(1, std::min(4, static_cast<int>(MEMORY_LIMIT /  memory_usage) - 1));
-    manage_memory_and_threads(hp, num_threads);
+    manage_memory_and_threads(hp, memory_usage, num_threads);
     return 0;
 }
