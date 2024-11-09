@@ -13,7 +13,9 @@ void ipf_mt(HyPar &hp, bool &valid, long long &hop) {
         hp.fast_initial_partition();
         hp.fast_refine();
     } else {
-        hp.fast_initial_partition();
+        hp.SCLa_propagation();
+        hp.evaluate(valid, hop);
+        std::cout << "After SCLa: " << valid << " " << hop << std::endl;
         hp.only_fast_refine();
     }
     hp.evaluate_summary(valid, hop, std::cout);
@@ -21,6 +23,11 @@ void ipf_mt(HyPar &hp, bool &valid, long long &hop) {
 
 void ofr_mt(HyPar &hp, bool &valid, long long &hop) {
     hp.only_fast_refine();
+    hp.evaluate_summary(valid, hop, std::cout);
+}
+
+void fr_mt(HyPar &hp, bool &valid, long long &hop) {
+    hp.fast_refine();
     hp.evaluate_summary(valid, hop, std::cout);
 }
 
@@ -72,7 +79,7 @@ int main(int argc, char **argv) {
     }
     auto end = std::chrono::high_resolution_clock::now();
     std::cout << "Before Coarsen: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << " s" << std::endl;
-    std::cout << "Node: " << hp.N << std::endl;
+    start = std::chrono::high_resolution_clock::now();
     if (hp.N < 1e5) {
         HyPar hp_mt[4]{};
         std::thread threads[4];
@@ -105,23 +112,19 @@ int main(int argc, char **argv) {
             }
         }
     } else {
-        hp.SCLa_propagation();
-        hp.evaluate_summary(std::cout);
         HyPar hp_mt[2]{};
-        std::thread threads[3];
-        bool valid[3], bestvalid = false;
-        long long hop[3], besthop = __LONG_LONG_MAX__;
+        std::thread threads[2];
+        bool valid[2], bestvalid = false;
+        long long hop[2], besthop = __LONG_LONG_MAX__;
         int bestid = -1;
-        for (int r = 0; r < 2; ++r) {
-            std::cout << "Starting threads round " << r << std::endl;
+        while (!bestvalid) {
+            std::cout << "Starting threads..." << std::endl;
+            bestid = -1;
             for (int i = 0; i < 2; ++i) {
                 hp_mt[i] = hp;
             }
             for (int i = 0; i < 2; ++i) {
-                threads[i] = std::thread(ofr_mt, std::ref(hp_mt[i]), std::ref(valid[i]), std::ref(hop[i]));
-            }
-            if (r == 0) {
-                threads[2] = std::thread(ghg_mt, std::ref(hp), std::ref(valid[2]), std::ref(hop[2]));
+                threads[i] = std::thread(ipf_mt, std::ref(hp_mt[i]), std::ref(valid[i]), std::ref(hop[i]));
             }
             for (int i = 0; i < 2; ++i) {
                 threads[i].join();
@@ -138,12 +141,9 @@ int main(int argc, char **argv) {
                 hp_mt[bestid].printOut();
                 break;
             }
-            if (r == 0) {
-                threads[2].join();
-                hp.evaluate_summary(std::cout);
-                std::cout << "Thread 2 finished." << std::endl;
-            }
         }
     }
+    end = std::chrono::high_resolution_clock::now();
+    std::cout << "After Coarsen: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << " s" << std::endl;
     return 0;
 }

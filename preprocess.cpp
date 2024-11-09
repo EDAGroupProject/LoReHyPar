@@ -314,13 +314,21 @@ int HyPar::community_detect() {
 }
 
 void HyPar::contract_in_community(int community) {
-    auto it = communities[community].begin();
-    int u = *it;
-    ++it;
-    for (; it != communities[community].end(); ) {
-        int v = *it;
-        _contract_with_nodefp(u, v);
-        it = communities[community].erase(it);
+    auto uit = communities[community].begin();
+    while (uit != communities[community].end()) {
+        int u = *uit;
+        auto vit = uit;
+        ++vit;
+        for (; vit != communities[community].end(); ) {
+            int v = *vit;
+            if (_contract_eligible(u, v)) {
+                _contract(u, v);
+                vit = communities[community].erase(vit);
+            } else {
+                ++vit;
+            }
+        }
+        ++uit;
     }
 } 
 
@@ -330,7 +338,7 @@ void HyPar::contract_in_community(const std::unordered_set<int> &community, std:
     ++it;
     for (; it != community.end(); ++it) {
         int v = *it;
-        _contract_with_nodefp(u, v);
+        _contract(u, v);
         active_nodes.erase(v);
     }
 }
@@ -354,7 +362,9 @@ void HyPar::fast_preprocess() {
     int max_size = community_detect();
     int c_min = static_cast<int>(std::ceil(double(max_size) / (10 * parameter_t)));
     for (size_t i = 0; i < communities.size(); ++i) {
-        if (static_cast<int>(communities[i].size()) > c_min) {
+        if (static_cast<int>(communities[i].size()) <= c_min) {
+            contract_in_community(i);
+        } else {
             fast_pin_sparsify_in_community(i, c_min);
         }
         for (int u : communities[i]) {

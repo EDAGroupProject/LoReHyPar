@@ -195,6 +195,69 @@ void HyPar::only_fast_k_way_localized_refine(int num, int sel) {
     }
 }
 
+bool HyPar::fast_refine_max_hop() {
+    std::priority_queue<std::tuple<int, int, int>> gain_map; // (gain, node, fpga)
+    std::unordered_set<int> active_nodes;
+    for (const auto &net : nets) {
+        if (net.size == 1) {
+            continue;
+        }
+        int s = net.source;
+        int sf = nodes[s].fpga;
+        for (int i = 0; i < net.size; ++i) {
+            int u = net.nodes[i];
+            int uf = nodes[u].fpga;
+            if (fpgaMap[sf][uf] > maxHop) {
+                active_nodes.insert(u);
+                active_nodes.insert(s);
+            }
+        }
+    }
+    if (active_nodes.empty()) {
+        return true;
+    }
+    auto it = active_nodes.begin();
+    auto size = active_nodes.size();
+    for (size_t i = 0; i < size; ++i) {
+        int u = *it;
+        for (int net : nodes[u].nets) {
+            for (int j = 0; j < nets[net].size; ++j) {
+                int v = nets[net].nodes[j];
+                active_nodes.insert(v);
+            }   
+        }
+        ++it;
+    }
+    for (int node : active_nodes) {
+        _cal_gain(node, nodes[node].fpga, 0, gain_map);
+    }
+    while(!gain_map.empty()) {
+        auto [max_gain, max_n, max_tf] = gain_map.top();
+        gain_map.pop();
+        while (active_nodes.count(max_n) && !gain_map.empty()) {
+            std::tie(max_gain, max_n, max_tf) = gain_map.top();
+            gain_map.pop();
+        }
+        if (gain_map.empty()) {
+            break;
+        }
+        if (max_gain < 0) {
+            break;
+        }
+        int of = nodes[max_n].fpga;
+        fpgas[of].nodes.erase(max_n);
+        _fpga_remove_force(of, max_n);
+        nodes[max_n].fpga = max_tf;
+        fpgas[max_tf].nodes.insert(max_n);
+        _fpga_add_force(max_tf, max_n);
+        for (int net : nodes[max_n].nets) {
+            --nets[net].fpgas[of];
+            ++nets[net].fpgas[max_tf];
+        }
+    }
+    return false;
+}
+
 void HyPar::refine() {
     while (!contract_memo.empty()) {
         k_way_localized_refine(0);
@@ -218,7 +281,17 @@ void HyPar::only_fast_refine() {
     int cnt = 0;
     while (!contract_memo.empty()) {
         int num = std::sqrt(contract_memo.size());
+        auto start = std::chrono::high_resolution_clock::now();
         only_fast_k_way_localized_refine(num, 0);
+        auto end = std::chrono::high_resolution_clock::now();
+        std::cout << "only fast refine " << cnt++ << " time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
+    }
+    bool flag = false;
+    while (!flag) {
+        auto start = std::chrono::high_resolution_clock::now();
+        flag = fast_refine_max_hop();
+        auto end = std::chrono::high_resolution_clock::now();
+        std::cout << "fast refine max hop time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
     }
     evaluate_summary(std::cout);
 }

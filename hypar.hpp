@@ -166,6 +166,7 @@ public:
     void k_way_localized_refine(int sel);
     void fast_k_way_localized_refine(int num, int sel);
     void only_fast_k_way_localized_refine(int num, int sel);
+    bool fast_refine_max_hop();
 
     void run();
     void run_before_coarsen();
