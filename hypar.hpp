@@ -13,6 +13,7 @@
 #include <unordered_set>
 #include <vector>
 #include <cassert>
+#include <thread>
 
 #define NUM_RES 8
 
@@ -35,13 +36,11 @@ struct pair_hash final {
 
 struct Node {
     std::string name{};
-    int isRep{}; // is replicated node, dont know how to handle this
+    int rep{-1}; // -1: not a representative, >= 0: the representative
     int fpga{-1}; // easy to signal the partition
     double resLoad[NUM_RES]{};
     int size{1};
-    int fp{};
-    std::vector<int> reps{};
-    std::unordered_set<int> nets{};
+    std::set<int> nets{};
     std::unordered_map<int, bool> isSou{};
 };
 
@@ -51,7 +50,6 @@ struct Net {
     int size{};
     std::vector<int> nodes{};
     std::unordered_map<int, int> fpgas{}; // help to calculate the connectivity
-    // when kvp.second == 0, it should be erased
 };
 
 struct Fpga {
@@ -76,11 +74,9 @@ private:
     int parameter_t = 2; // parameter in the calculation of ceilRes
     int parameter_l = 20; // parameter, do not evaluate nets with size more than parameter_l
     int parameter_tau = 5; // parameter, in SCLa propagation, the tau of the neighbors get the same label
-    std::unordered_set<int> existing_nodes, deleted_nodes;
-    std::vector<std::unordered_set<int>> communities;
+    std::unordered_set<int> existing_nodes;
     std::unordered_map<int, int> node2community;
     std::stack<std::pair<int, int>> contract_memo;
-    // std::unordered_map<int, int> netFp;
     double ceil_rescap[NUM_RES]{}, ceil_size{};
     double mean_res[NUM_RES]{};
 
@@ -88,10 +84,6 @@ private:
     void _contract(int u, int v);   // contract v into u
     void _uncontract(int u, int v); // uncontract v from u
     void _uncontract(int u, int v, int f);  // uncontract v from u
-    float _heavy_edge_rating(int u, int v); // rate the pair (u, v) "heavy edge"
-    float _heavy_edge_rating(int u, int v, std::unordered_map<std::pair<int, int>, int, pair_hash> &rating); // rate the pair (u, v) "heavy edge"
-    // void _init_net_fp();
-    // void _detect_para_singv_net(); // detect and remove parallel nets or single vertex nets
     bool _contract_eligible(int u, int v); // check if u and v are eligible to be contracted
     bool _fpga_add_try(int f, int u);
     bool _fpga_add_force(int f, int u);
@@ -104,8 +96,7 @@ private:
     int _hop_gain(int of, int tf, int u);
     int _connectivity_gain(int of, int tf, int u);
     int _gain_function(int of, int tf, int u, int sel = 0);
-    void _cal_inpar_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
-    void _cal_refine_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
+    void _cal_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
     void _max_net_gain(std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
     void _FM_gain(int of, std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
     void _hop_gain(int of, std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
@@ -115,64 +106,32 @@ private:
     void _get_eligible_fpga(int u, std::unordered_set<int> &toFpga);
     void _get_eligible_fpga(int u, std::unordered_map<int, bool> &toFpga);
     bool _chk_legel_put();
-
-
-    // fastdebug
-    void savePreprocessResults(const std::string &filename);
-    void loadPreprocessResults(const std::string &filename);
-    void savePreprocessResultsAsText(const std::string &filename);
-    void loadPreprocessResultsAsText(const std::string &filename);
-    void saveCoarsenResults(const std::string &filename);
-    void loadCoarsenResults(const std::string &filename);
-    void saveCoarsenResultsAsText(const std::string &filename);
-    void loadCoarsenResultsAsText(const std::string &filename);
-    void savePartitionResults(const std::string &filename);
-    void loadPartitionResults(const std::string &filename);
-    void savePartitionResultsAsText(const std::string &filename);
-    void loadPartitionResultsAsText(const std::string &filename);
-    void saveRefineResults(const std::string &filename);
-    void loadRefineResults(const std::string &filename);
-    void saveRefineResultsAsText(const std::string &filename);
-    void loadRefineResultsAsText(const std::string &filename);
+    bool _chk_net_fpgas();
 
 public:
     HyPar() = default;
     HyPar(std::string _inputDir, std::string _outputFile);
-    HyPar(const HyPar &other) = default;
-    ~HyPar() = default;
+
+    int N; // number of nodes
 
     void readInfo(std::ifstream &info);
     void readAre(std::ifstream &are);
     void readNet(std::ifstream &net);
     void readTopo(std::ifstream &topo);
 
-    void printSummary(std::ostream &out);
-    void printSummary(std::ofstream &out);
+    void printOut();
+    void printOut(std::ostream &out);
     void printOut(std::ofstream &out);
 
     // Preprocessing
-    // @todo: preprocessing function
     void preprocess();
-    void pin_sparsify();
-    void pin_sparsify_in_community(int community, int c_min, int c_max);
-    void fast_pin_sparsify();
-    void fast_pin_sparsify_in_community(int community, int c_min, int c_max);
-    int community_detect();
-    void contract_in_community(int community);
-    void contract_in_community(const std::unordered_set<int> &community, std::unordered_set<int> &active_nodes);
-    void recursive_community_contract();
-    void preprocess_for_next_round();
+    void community_detect();
 
     // Coarsening
     void coarsen();
     void fast_coarsen();
-    bool _coarsen_naive();
-    void coarsen_naive();
-    bool coarsen_in_community(int community);
-    bool fast_coarsen_in_community(int community);
-    bool naive_coarsen_in_community(int community);
     bool coarsen_by_nets();
-    // @todo: detect&remove parallel nets or single vertex nets
+    bool coarsen_by_nets_in_community();
 
     // Initial Partitioning
     void initial_partition();
@@ -180,40 +139,21 @@ public:
     void bfs_partition();
     void SCLa_propagation();
     void greedy_hypergraph_growth(int sel);
-    // @todo: other partitioning methods to enrich the portfolio
+    void activate_max_hop_nodes(int sel);
 
     // Refinement
     void refine();
     void fast_refine();
     void only_fast_refine();
-    void refine_naive();
     void k_way_localized_refine(int sel);
     void fast_k_way_localized_refine(int num, int sel);
     void only_fast_k_way_localized_refine(int num, int sel);
-    bool refine_max_connectivity();
-    bool refine_res_validity(int sel);
-    bool refine_max_hop();
-    void refine_random_one_node(int sel);
-    void force_connectivity_refine();
-    bool force_validity_refine(int sel = 0);
-        
-    // Replication
-    // @todo: the implementation of the replication
-
-    // Multi-thread
-    // @todo: i have include the boost library, in the future, we can use it to implement multi-threading
-    
-    // Flow-cutter
-    // @todo: maybe use the flow-cutter to refine the partition
-
-    // Memetic Algorithm
-    // @todo: implement the memetic algorithm to the whole framework
-
-    // Incremental Update or Data Cache
-    // @warning: this is a very important part, we should implement this in the future
 
     void run();
+    void run_before_coarsen();
+    void run_after_coarsen(bool &valid, long long &hop);
     void evaluate_summary(std::ostream &out);
+    void evaluate_summary(bool &valid, long long &hop, std::ostream &out);
     void evaluate(bool &valid, long long &hop);
 };
 
