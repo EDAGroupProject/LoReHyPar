@@ -139,7 +139,7 @@ public:
     void bfs_partition();
     void SCLa_propagation();
     void greedy_hypergraph_growth(int sel);
-    void fast_greedy_hypergraph_growth(int sel);
+    void activate_max_hop_nodes(int sel);
 
     // Refinement
     void refine();

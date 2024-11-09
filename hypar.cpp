@@ -113,7 +113,7 @@ void HyPar::readTopo(std::ifstream &topo) {
     for (int i = 0; i < K; ++i) {
         for (int j = 0; j < K; j++) {
             if(fpgaMap[i][j] > maxHop) {
-                fpgaMap[i][j] = K * maxHop; // @warning: a large number to indicate no connection
+                fpgaMap[i][j] = K * K * maxHop; // @warning: a large number to indicate no connection
             }
         }
     }
@@ -797,7 +797,9 @@ void HyPar::run_after_coarsen(bool &valid, long long &hop) {
         fast_initial_partition();
         fast_refine();
     } else {
-        fast_initial_partition();
+        SCLa_propagation();
+        evaluate(valid, hop);
+        std::cout << "SCLa Partition: " << hop << std::endl;
         only_fast_refine();
     }
     evaluate_summary(valid, hop, std::cout);
