@@ -368,7 +368,8 @@ void HyPar::initial_partition() {
     bool bestvalid = false, valid;
     long long minHop = LONG_LONG_MAX, hop;
     HyPar best, tmp;
-    for (int i = 0; i < 10; ++i){
+    int num = 1 + 50 / (1 + std::log(N) / std::log(10));
+    for (int i = 0; i < num; ++i){
         tmp = *this;
         tmp.bfs_partition();
         tmp.evaluate(valid, hop);
@@ -378,7 +379,7 @@ void HyPar::initial_partition() {
             minHop = hop;
         }
     }
-    for (int i = 0; i < 10; ++i){
+    for (int i = 0; i < num; ++i){
         tmp = *this;
         tmp.SCLa_propagation();
         tmp.evaluate(valid, hop);

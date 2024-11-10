@@ -194,7 +194,8 @@ void HyPar::only_fast_refine() {
 }
 
 // didn't consider the of the influence of the formerly replicated nodes on the gain calculation
-void HyPar::add_logic_replication() {
+// the hop gain calculation is inaccurate
+void HyPar::add_logic_replication(long long &hop) {
     std::vector<std::unordered_set<int>> sources(N);
     std::priority_queue<std::tuple<int, int, int>> gain_map; // (gain, node, fpga)
     for (size_t i = 0; i < nets.size(); ++i) {
@@ -216,24 +217,28 @@ void HyPar::add_logic_replication() {
                 continue;
             }
             int gain = 0;
-            bool flag = false;
+            int flag = false;
             int conn = fpgas[f].conn;
-            // worst estimation on connectivity
             for (int on : sources[s]) {
+                int osf = nodes[nets[on].source].fpga;
                 if (nets[on].fpgas[f] == 0) {
-                    int osf = nodes[nets[on].source].fpga;
+                    // max hop constraint
                     if (fpgaMap[osf][f] > maxHop) {
                         flag = true;
                         break;
                     }
                     gain -= nets[on].weight * fpgaMap[osf][f];
+                    conn += nets[on].weight;
                 }
-                conn += nets[on].weight;
+                if (nets[on].fpgas[osf] == nets[on].size && osf != f) {
+                    // connectivity constraint
+                    if (fpgas[osf].conn += nets[on].weight > fpgas[osf].maxConn) {
+                        flag = true;
+                        break;
+                    }
+                }
             }
-            if (flag) {
-                continue;
-            }
-            if (conn > fpgas[f].maxConn) {
+            if (flag || conn > fpgas[f].maxConn) {
                 continue;
             }
             gain += net.weight * fpgaMap[sf][f];
@@ -249,12 +254,13 @@ void HyPar::add_logic_replication() {
         if (!_fpga_add_try(f, u)) {
             continue;
         }
+        hop -= gain;
         nodes.emplace_back();
         int new_u = nodes.size() - 1;
-        nodes[new_u] = nodes[u];
+        nodes[new_u].name = nodes[u].name + "*";
         nodes[new_u].rep = u;
         nodes[new_u].fpga = f;
         fpgas[f].nodes.insert(new_u);
-        _fpga_add_force(f, new_u);
+        _fpga_add_force(f, u);
     }
 }

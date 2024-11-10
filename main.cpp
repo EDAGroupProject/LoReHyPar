@@ -5,6 +5,8 @@
 
 const size_t MEMORY_LIMIT = 31.9 * 1024 * 1024 * 1024; // 31.9GB
 
+Result best_result;
+
 size_t get_memory_usage() {
     std::ifstream statm("/proc/self/status");
     std::string line;
@@ -22,16 +24,7 @@ void run_mt(HyPar &hp, bool &valid, long long &hop) {
     hp.run_after_coarsen(valid, hop);
 }
 
-void limit_memory_usage() {
-    struct rlimit rl;
-    rl.rlim_cur = 32L * 1024 * 1024 * 1024; // 32 GB
-    rl.rlim_max = 32L * 1024 * 1024 * 1024; // 32 GB
-    if (setrlimit(RLIMIT_AS, &rl) != 0) {
-        std::cerr << "Failed to set memory limit." << std::endl;
-    }
-}
-
-bool manage_memory_and_threads(HyPar &hp, size_t hp_memory, int num_threads = 4) {
+void manage_memory_and_threads(HyPar &hp, size_t hp_memory, int num_threads = 4) {
     std::vector<std::shared_ptr<HyPar>> hp_mt;
     std::vector<std::thread> threads;
     bool valid[num_threads]{}, bestvalid = false;
@@ -65,16 +58,15 @@ bool manage_memory_and_threads(HyPar &hp, size_t hp_memory, int num_threads = 4)
                 hp_mt[i].reset();
             }
         }
-        hp_mt[bestid]->add_logic_replication();
-        hp_mt[bestid]->printOut();
-        return true;
+        hp_mt[bestid]->add_logic_replication(besthop);
+        if (besthop < best_result.hop) {
+            hp_mt[bestid]->printOut(best_result, besthop);
+        }
     }
-    return false;
 }
 
 int main(int argc, char **argv) {
     std::ios::sync_with_stdio(false);
-    limit_memory_usage();
     assert(argc == 5);
     std::string inputDir, outputFile;
     int opt;
@@ -99,25 +91,43 @@ int main(int argc, char **argv) {
     HyPar hp(inputDir, outputFile);
     hp.run_before_coarsen();
     size_t m1 = get_memory_usage();
-    size_t memory_usage = std::max(m1 - m0, size_t(1024 * 1024 * 1024));
+    size_t memory_usage = m1 - m0;
     std::cout << "Memory usage: " << memory_usage << std::endl;
-    const int num_threads = std::min(4, static_cast<int>(MEMORY_LIMIT /  memory_usage - 1));
+    const int num_threads = int(std::min(size_t(4), MEMORY_LIMIT /  (1 + memory_usage) - 1));
     std::cout << "num_threads: " << num_threads << std::endl;
     if (num_threads >= 1) {
-        while (!manage_memory_and_threads(hp, memory_usage, num_threads)) {
-            std::cout << "Run with " << num_threads << " threads." << std::endl;
-        } 
+        std::cout << "Run with " << num_threads << " threads." << std::endl;
+        auto start = std::chrono::high_resolution_clock::now();
+        manage_memory_and_threads(hp, memory_usage, num_threads);
+        auto end = std::chrono::high_resolution_clock::now();
+        std::cout << "Time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
+        const int round_num = int(std::min(long(100), 55 * 60 / (1 + std::chrono::duration_cast<std::chrono::seconds>(end - start).count())));
+        std::cout << "Round number: " << round_num << std::endl;
+        for (int i = 1; i < round_num; ++i) {
+            manage_memory_and_threads(hp, memory_usage, num_threads);
+        }
+        std::ofstream out(outputFile);
+        best_result.printOut(out);
     } else {
         std::cout << "Run with 1 thread." << std::endl;
         bool valid = false;
         long long hop = 0;
         hp.run_after_coarsen(valid, hop);
-        while (!valid) {
-            std::cout << "Run with 1 thread." << std::endl;
-            hp.reread();
-            hp.run(valid, hop);
+        if (valid) {
+            hp.add_logic_replication(hop);
+            hp.printOut();
+            return 0;
         }
-        hp.printOut();
+        else
+            while (!valid) {
+                hp.reread();
+                hp.run(valid, hop);
+                if (valid) {
+                    hp.add_logic_replication(hop);
+                    hp.printOut();
+                    return 0;
+                }
+            }
     }
     return 0;
 }

@@ -65,6 +65,14 @@ struct Fpga {
     std::unordered_set<int> nodes{};
 };
 
+struct Result {
+    std::string output{};
+    long long hop{LONG_LONG_MAX};
+    void printOut(std::ofstream &out) {
+        out << output;
+    }
+};
+
 class HyPar {
 private:
     int maxHop, K; // number of partitions
@@ -119,6 +127,7 @@ public:
 
     void printOut();
     void printOut(std::ofstream &out);
+    void printOut(Result &res, long long hop);
 
     // Preprocessing
     void preprocess();
@@ -145,7 +154,7 @@ public:
     void k_way_localized_refine(int sel);
     void fast_k_way_localized_refine(int num, int sel);
     void only_fast_k_way_localized_refine(int num, int sel);
-    void add_logic_replication();
+    void add_logic_replication(long long &hop);
 
     void run();
     void run(bool &valid, long long &hop);

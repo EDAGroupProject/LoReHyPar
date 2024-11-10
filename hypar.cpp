@@ -145,15 +145,25 @@ void HyPar::printOut(std::ofstream &out) {
     for (const auto &fpga: fpgas) {
         out << fpga.name << ": ";
         for (int node : fpga.nodes) {
-            if(nodes[node].rep != -1) {
-                out << nodes[node].name << "* ";
-            }else{
-                out << nodes[node].name << " ";
-            }
+            out << nodes[node].name << " ";
         }
         out << std::endl;
     }
 }
+
+void HyPar::printOut(Result &res, long long hop) {
+    std::stringstream ss;
+    for (const auto &fpga : fpgas) {
+        ss << fpga.name << ": ";
+        for (int node : fpga.nodes) {
+            ss << nodes[node].name << " ";
+        }
+        ss << std::endl;
+    }
+    res.output = ss.str();
+    res.hop = hop;
+}
+
 
 void HyPar::_contract(int u, int v) {
     contract_memo.push({u, v});
@@ -579,15 +589,13 @@ void HyPar::evaluate(bool &valid, long long &hop) {
     }
 }
 
-
-
 void HyPar::run() {
-    if (nodes.size() < 1e4) {
+    if (N < 1e4) {
         preprocess();
         coarsen();
         initial_partition();
         refine();
-    } else if (nodes.size() < 1e5) {
+    } else if (N < 1e5) {
         preprocess();
         coarsen();
         fast_initial_partition();
@@ -601,12 +609,12 @@ void HyPar::run() {
 }
 
 void HyPar::run(bool &valid, long long &hop) {
-    if (nodes.size() < 1e4) {
+    if (N < 1e4) {
         preprocess();
         coarsen();
         initial_partition();
         refine();
-    } else if (nodes.size() < 1e5) {
+    } else if (N < 1e5) {
         preprocess();
         coarsen();
         fast_initial_partition();
