@@ -24,7 +24,39 @@ void run_mt(HyPar &hp, bool &valid, long long &hop) {
     hp.run_after_coarsen(valid, hop);
 }
 
-void manage_memory_and_threads(HyPar &hp, size_t hp_memory, int num_threads = 4) {
+void nextround(const HyPar &hp, std::vector<std::shared_ptr<HyPar>> &hp_mt, std::vector<std::thread> &threads, int num_threads = 4) {
+    bool valid[num_threads]{}, bestvalid = false;
+    long long hop[num_threads]{}, besthop = __LONG_LONG_MAX__;
+    for (int i = 0; i < num_threads; ++i) {
+        hp_mt[i] = std::make_shared<HyPar>(hp);
+        threads[i] = std::thread(run_mt, std::ref(*hp_mt[i]), std::ref(valid[i]), std::ref(hop[i]));
+    }
+    size_t bestid = -1;
+    for (size_t i = 0; i < num_threads; ++i) {
+        threads[i].join();
+        std::cout << "Thread " << i << " finished." << std::endl;
+        if (bestvalid <= valid[i] && hop[i] < besthop) {
+            bestid = i;
+            besthop = hop[i];
+            bestvalid = valid[i];
+        }
+    }
+    if (bestvalid) {
+        std::cout << "Best thread: " << bestid << std::endl;
+        for (size_t i = 0; i < hp_mt.size(); ++i) {
+            if (i != bestid) {
+                hp_mt[i].reset();
+            }
+        }
+        hp_mt[bestid]->add_logic_replication(besthop);
+        if (besthop < best_result.hop) {
+            hp_mt[bestid]->printOut(best_result, besthop);
+        }
+    }
+}
+
+void manage_memory_and_threads(const HyPar &hp, size_t hp_memory, int num_threads = 4) {
+    auto start = std::chrono::high_resolution_clock::now();
     std::vector<std::shared_ptr<HyPar>> hp_mt;
     std::vector<std::thread> threads;
     bool valid[num_threads]{}, bestvalid = false;
@@ -38,9 +70,12 @@ void manage_memory_and_threads(HyPar &hp, size_t hp_memory, int num_threads = 4)
         std::cout << "Memory usage: " << memory_usage << std::endl;
         if (memory_usage + hp_memory >= MEMORY_LIMIT) {
             std::cout << "Memory limit reached, stop pushing hp" << std::endl;
+            num_threads = i + 1;
             break;
         }
     }
+    hp_mt.resize(num_threads);
+    threads.resize(num_threads);
     size_t bestid = -1;
     for (size_t i = 0; i < threads.size(); ++i) {
         threads[i].join();
@@ -61,6 +96,22 @@ void manage_memory_and_threads(HyPar &hp, size_t hp_memory, int num_threads = 4)
         hp_mt[bestid]->add_logic_replication(besthop);
         if (besthop < best_result.hop) {
             hp_mt[bestid]->printOut(best_result, besthop);
+        }
+    }
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+    std::cout << "Time: " << duration << "s" << std::endl;
+    int round_num = int(std::min(long(100), 55 * 60 / (1 + duration)));
+    int round_unit = int(1 + 12 * 60 / (1 + duration));
+    long long old_besthop = best_result.hop;
+    for (int i = 1; i < round_num; ++i) {
+        std::cout << "Round " << i << std::endl;
+        nextround(hp, hp_mt, threads, num_threads);
+        if (i % round_unit == 0) {
+            if (best_result.hop == old_besthop) {
+                break;
+            }
+            old_besthop = best_result.hop;
         }
     }
 }
@@ -97,15 +148,7 @@ int main(int argc, char **argv) {
     std::cout << "num_threads: " << num_threads << std::endl;
     if (num_threads >= 1) {
         std::cout << "Run with " << num_threads << " threads." << std::endl;
-        auto start = std::chrono::high_resolution_clock::now();
         manage_memory_and_threads(hp, memory_usage, num_threads);
-        auto end = std::chrono::high_resolution_clock::now();
-        std::cout << "Time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
-        const int round_num = int(std::min(long(100), 55 * 60 / (1 + std::chrono::duration_cast<std::chrono::seconds>(end - start).count())));
-        std::cout << "Round number: " << round_num << std::endl;
-        for (int i = 1; i < round_num; ++i) {
-            manage_memory_and_threads(hp, memory_usage, num_threads);
-        }
         std::ofstream out(outputFile);
         best_result.printOut(out);
     } else {
