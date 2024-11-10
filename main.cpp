@@ -48,7 +48,7 @@ bool manage_memory_and_threads(HyPar &hp, size_t hp_memory, int num_threads = 4)
             break;
         }
     }
-    int bestid = -1;
+    size_t bestid = -1;
     for (size_t i = 0; i < threads.size(); ++i) {
         threads[i].join();
         std::cout << "Thread " << i << " finished." << std::endl;
@@ -60,6 +60,12 @@ bool manage_memory_and_threads(HyPar &hp, size_t hp_memory, int num_threads = 4)
     }
     if (bestvalid) {
         std::cout << "Best thread: " << bestid << std::endl;
+        for (size_t i = 0; i < hp_mt.size(); ++i) {
+            if (i != bestid) {
+                hp_mt[i].reset();
+            }
+        }
+        hp_mt[bestid]->add_logic_replication();
         hp_mt[bestid]->printOut();
         return true;
     }
@@ -93,9 +99,9 @@ int main(int argc, char **argv) {
     HyPar hp(inputDir, outputFile);
     hp.run_before_coarsen();
     size_t m1 = get_memory_usage();
-    size_t memory_usage = m1 - m0;
+    size_t memory_usage = std::max(m1 - m0, size_t(1024 * 1024 * 1024));
     std::cout << "Memory usage: " << memory_usage << std::endl;
-    const int num_threads = std::min(4, static_cast<int>(MEMORY_LIMIT /  memory_usage) - 1);
+    const int num_threads = std::min(4, static_cast<int>(MEMORY_LIMIT /  memory_usage - 1));
     std::cout << "num_threads: " << num_threads << std::endl;
     if (num_threads >= 1) {
         while (!manage_memory_and_threads(hp, memory_usage, num_threads)) {

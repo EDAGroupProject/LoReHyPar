@@ -25,4 +25,6 @@ else
     echo "Build failed."
 fi
 
+cd ..
+
 ./evaluator/evaluator -t "testcase/${CASE}" -s "testcase/${CASE}/design.fpga.out"

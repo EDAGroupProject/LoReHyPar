@@ -192,3 +192,69 @@ void HyPar::only_fast_refine() {
         only_fast_k_way_localized_refine(num, 0);
     }
 }
+
+// didn't consider the of the influence of the formerly replicated nodes on the gain calculation
+void HyPar::add_logic_replication() {
+    std::vector<std::unordered_set<int>> sources(N);
+    std::priority_queue<std::tuple<int, int, int>> gain_map; // (gain, node, fpga)
+    for (size_t i = 0; i < nets.size(); ++i) {
+        const auto &net = nets[i];
+        int s = net.source;
+        for (int j = 0; j < net.size; ++j) {
+            int u = net.nodes[j];
+            if (u == s) {
+                continue;
+            }
+            sources[u].insert(i);
+        }
+    }
+    for (const auto &net : nets) {
+        int s = net.source;
+        int sf = nodes[s].fpga;
+        for (const auto &[f, cnt] : net.fpgas) {
+            if (cnt == 0 || f == sf || fpgaMap[sf][f] > maxHop || !_fpga_add_try(f, s)) {
+                continue;
+            }
+            int gain = 0;
+            bool flag = false;
+            int conn = fpgas[f].conn;
+            // worst estimation on connectivity
+            for (int on : sources[s]) {
+                if (nets[on].fpgas[f] == 0) {
+                    int osf = nodes[nets[on].source].fpga;
+                    if (fpgaMap[osf][f] > maxHop) {
+                        flag = true;
+                        break;
+                    }
+                    gain -= nets[on].weight * fpgaMap[osf][f];
+                }
+                conn += nets[on].weight;
+            }
+            if (flag) {
+                continue;
+            }
+            if (conn > fpgas[f].maxConn) {
+                continue;
+            }
+            gain += net.weight * fpgaMap[sf][f];
+            gain_map.push({gain, s, f});
+        }
+    }
+    while (!gain_map.empty()) {
+        auto [gain, u, f] = gain_map.top();
+        gain_map.pop();
+        if (gain < 0) {
+            break;
+        }
+        if (!_fpga_add_try(f, u)) {
+            continue;
+        }
+        nodes.emplace_back();
+        int new_u = nodes.size() - 1;
+        nodes[new_u] = nodes[u];
+        nodes[new_u].rep = u;
+        nodes[new_u].fpga = f;
+        fpgas[f].nodes.insert(new_u);
+        _fpga_add_force(f, new_u);
+    }
+}

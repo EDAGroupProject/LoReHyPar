@@ -4,7 +4,7 @@ bool HyPar::coarsen_by_nets() {
     bool contFlag = false;
     std::priority_queue<std::tuple<int, int, int>> rating_map;
     std::unordered_map<std::pair<int, int>, int, pair_hash> rating;
-    for (auto &net : nets) {
+    for (const auto &net : nets) {
         if (net.size > parameter_l || net.size == 1) {
             continue;
         }
@@ -39,7 +39,7 @@ bool HyPar::coarsen_by_nets_in_community() {
     bool contFlag = false;
     std::priority_queue<std::tuple<int, int, int>> rating_map;
     std::unordered_map<std::pair<int, int>, int, pair_hash> rating;
-    for (auto &net : nets) {
+    for (const auto &net : nets) {
         if (net.size > parameter_l || net.size == 1) {
             continue;
         }

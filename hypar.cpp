@@ -2,19 +2,19 @@
 
 HyPar::HyPar(std::string _inputDir, std::string _outputFile) : inputDir(_inputDir), outputFile(_outputFile) {
     std::ifstream info(inputDir + "/design.info"), are(inputDir + "/design.are"), net(inputDir + "/design.net"), topo(inputDir + "/design.topo");
-    readInfo(info);
-    readAre(are);
-    readNet(net);
-    readTopo(topo);
+    std::unordered_map<std::string, int> node2id;
+    std::unordered_map<std::string, int> fpga2id;
+    readInfo(info, fpga2id);
+    readAre(are, node2id);
+    readNet(net, node2id);
+    readTopo(topo, fpga2id);
 }
 
 void HyPar::reread() {
     std::ifstream info(inputDir + "/design.info"), are(inputDir + "/design.are"), net(inputDir + "/design.net"), topo(inputDir + "/design.topo");
     //clear
     fpgas.clear();
-    fpga2id.clear();
     nodes.clear();
-    node2id.clear();
     nets.clear();
     fpgaMap.clear();
     contract_memo = std::stack<std::pair<int, int>>();
@@ -23,13 +23,15 @@ void HyPar::reread() {
     memset(ceil_rescap, 0, sizeof(ceil_rescap));
     memset(mean_res, 0, sizeof(mean_res));
     //read
-    readInfo(info);
-    readAre(are);
-    readNet(net);
-    readTopo(topo);
+    std::unordered_map<std::string, int> node2id;
+    std::unordered_map<std::string, int> fpga2id;
+    readInfo(info, fpga2id);
+    readAre(are, node2id);
+    readNet(net, node2id);
+    readTopo(topo, fpga2id);
 }
 
-void HyPar::readInfo(std::ifstream &info) {
+void HyPar::readInfo(std::ifstream &info, std::unordered_map<std::string, int> &fpga2id) {
     std::string name;
     fpgas.reserve(64);
     fpga2id.reserve(64);
@@ -49,7 +51,7 @@ void HyPar::readInfo(std::ifstream &info) {
     }
 }
 
-void HyPar::readAre(std::ifstream &are) {
+void HyPar::readAre(std::ifstream &are, std::unordered_map<std::string, int> &node2id) {
     std::string name;
     if (K <= 8) {
         nodes.reserve(1e4);
@@ -79,7 +81,7 @@ void HyPar::readAre(std::ifstream &are) {
     node2community.reserve(N);
 }
 
-void HyPar::readNet(std::ifstream &net) {
+void HyPar::readNet(std::ifstream &net, std::unordered_map<std::string, int> &node2id) {
     std::string line;
     std::string name;
     int id;
@@ -103,7 +105,7 @@ void HyPar::readNet(std::ifstream &net) {
     }
 }
 
-void HyPar::readTopo(std::ifstream &topo) {
+void HyPar::readTopo(std::ifstream &topo, std::unordered_map<std::string, int> &fpga2id) {
     topo >> maxHop;
     fpgaMap.assign(K, std::vector<int>(K, maxHop + 1)); // maxHop + 1 means no connection
     for (int i = 0; i < K; ++i) {
@@ -251,26 +253,6 @@ bool HyPar::_fpga_remove_force(int f, int u) {
     return fpgas[f].resValid;
 }
 
-// @note: is there incremental update for the connectivity?
-long long HyPar::_fpga_cal_conn() {
-    long long conn = 0;
-    for (int i = 0; i < K; ++i) {
-        fpgas[i].conn = 0;
-    }
-    for (const auto &net: nets) {
-        if (net.size == 1) { // not a cut net
-            continue;
-        }
-        for (auto kvp : net.fpgas) { // a cut net
-            if (kvp.second > 0 && kvp.second < net.size) {
-                fpgas[kvp.first].conn += net.weight;
-                conn += net.weight;
-            }
-        }
-    }
-    return conn;
-}
-
 // GHG gain functions
 int HyPar::_max_net_gain(int tf, int u) {
     int gain = 0;
@@ -324,7 +306,7 @@ int HyPar::_hop_gain(int of, int tf, int u){
             continue;
         }
         if (nets[net].source == u) {
-            for (auto [f, cnt] : nets[net].fpgas) {
+            for (const auto &[f, cnt] : nets[net].fpgas) {
                 if (cnt == 0) {
                     continue;
                 }
@@ -430,7 +412,7 @@ void HyPar::_hop_gain(int of, std::unordered_set<int> &tfs, int u, std::unordere
             continue;
         }
         if (nets[net].source == u) {
-            for (auto [f, cnt] : nets[net].fpgas) {
+            for (const auto &[f, cnt] : nets[net].fpgas) {
                 if (cnt == 0) {
                     continue;
                 }
@@ -486,7 +468,7 @@ void HyPar::_cal_gain(int u, int f, int sel, std::priority_queue<std::tuple<int,
     }
     std::unordered_map<int, int> _gain_map;
     _gain_function(f, toFpga, u, sel, _gain_map);
-    for (auto [ff, gain] : _gain_map) {
+    for (const auto &[ff, gain] : _gain_map) {
         gain_map.push({gain, u, ff});
     }
 }
@@ -501,7 +483,7 @@ void HyPar::_get_eligible_fpga(int u, std::unordered_set<int> &tfs) {
     for (int net : nodes[u].nets) {
         int s = nets[net].source;
         if (s == u) {
-            for (auto [f, cnt] : nets[net].fpgas) {
+            for (const auto &[f, cnt] : nets[net].fpgas) {
                 if (cnt == 0 || (f == uf && nets[net].fpgas[f] == 1)) {
                     continue;
                 }
@@ -543,7 +525,7 @@ void HyPar::_get_eligible_fpga(int u, std::unordered_map<int, bool> &tfs) {
     for (int net : nodes[u].nets) {
         int s = nets[net].source;
         if (s == u) {
-            for (auto [f, cnt] : nets[net].fpgas) {
+            for (const auto &[f, cnt] : nets[net].fpgas) {
                 if (cnt == 0 || (f == uf && nets[net].fpgas[f] == 1)) {
                     continue;
                 }
@@ -573,10 +555,10 @@ void HyPar::evaluate(bool &valid, long long &hop) {
         fpgas[f].conn = 0;
     }
     hop = 0;
-    for (auto &net : nets) {
+    for (const auto &net : nets) {
         int source = net.source;
         int sf = nodes[source].fpga;
-        for (auto [f, cnt] : net.fpgas) {
+        for (const auto &[f, cnt] : net.fpgas) {
             if (!cnt) {
                 continue;
             }
@@ -590,7 +572,7 @@ void HyPar::evaluate(bool &valid, long long &hop) {
         }
     }
     valid = true;
-    for (auto &fpga : fpgas) {
+    for (const auto &fpga : fpgas) {
         if (!fpga.resValid || fpga.conn > fpga.maxConn) {
             valid = false;
         }

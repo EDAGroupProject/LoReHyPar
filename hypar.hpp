@@ -69,8 +69,6 @@ class HyPar {
 private:
     int maxHop, K; // number of partitions
     std::string inputDir, outputFile;
-    std::unordered_map<std::string, int> node2id;
-    std::unordered_map<std::string, int> fpga2id;
     std::vector<Node> nodes;
     std::vector<Net> nets;
     std::vector<Fpga> fpgas;
@@ -87,12 +85,11 @@ private:
 
     // basic operations
     void _contract(int u, int v);   // contract v into u
-    void _uncontract(int u, int v); // uncontract v from u
+    void _uncontract(int u, int v, int f); // uncontract v from u
     bool _contract_eligible(int u, int v); // check if u and v are eligible to be contracted
     bool _fpga_add_try(int f, int u);
     bool _fpga_add_force(int f, int u);
     bool _fpga_remove_force(int f, int u);
-    long long _fpga_cal_conn();
     int _max_net_gain(int tf, int u);
     int _FM_gain(int of, int tf, int u);
     int _hop_gain(int of, int tf, int u);
@@ -115,10 +112,10 @@ public:
     int N; // number of nodes
 
     void reread();
-    void readInfo(std::ifstream &info);
-    void readAre(std::ifstream &are);
-    void readNet(std::ifstream &net);
-    void readTopo(std::ifstream &topo);
+    void readInfo(std::ifstream &info, std::unordered_map<std::string, int> &fpga2id);
+    void readAre(std::ifstream &are, std::unordered_map<std::string, int> &node2id);
+    void readNet(std::ifstream &net, std::unordered_map<std::string, int> &node2id);
+    void readTopo(std::ifstream &topo, std::unordered_map<std::string, int> &fpga2id);
 
     void printOut();
     void printOut(std::ofstream &out);
@@ -148,6 +145,7 @@ public:
     void k_way_localized_refine(int sel);
     void fast_k_way_localized_refine(int num, int sel);
     void only_fast_k_way_localized_refine(int num, int sel);
+    void add_logic_replication();
 
     void run();
     void run(bool &valid, long long &hop);

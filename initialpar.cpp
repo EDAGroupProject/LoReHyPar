@@ -52,7 +52,7 @@ void HyPar::bfs_partition() {
             for (int net : nodes[u].nets) {
                 int s = nets[net].source;
                 if (u == s) {
-                    for (auto [f, cnt] : nets[net].fpgas) {
+                    for (const auto &[f, cnt] : nets[net].fpgas) {
                         if (cnt) {
                             for (auto it = toFpga.begin(); it != toFpga.end();) {
                                 int tf = *it;
@@ -157,7 +157,7 @@ void HyPar::SCLa_propagation() {
         for (int net : nodes[u].nets) {
             int s = nets[net].source;
             if (u == s) {
-                for (auto [f, cnt] : nets[net].fpgas) {
+                for (const auto &[f, cnt] : nets[net].fpgas) {
                     if (cnt) {
                         for (auto it = toFpga.begin(); it != toFpga.end();) {
                             int tf = *it;
@@ -388,20 +388,18 @@ void HyPar::initial_partition() {
             minHop = hop;
         }
     }
-    tmp = best;
+    *this = std::move(best);
     bool flag = true;
     while (flag) {
         flag = false;
-        tmp.greedy_hypergraph_growth(0);
-        tmp.evaluate(valid, hop);
+        greedy_hypergraph_growth(0);
+        evaluate(valid, hop);
         if (bestvalid <= valid && hop < minHop) {
             flag = true;
-            best = tmp;
             bestvalid = valid;
             minHop = hop;
         }
     }
-    *this = std::move(best);
     activate_max_hop_nodes(0);
 }
 
