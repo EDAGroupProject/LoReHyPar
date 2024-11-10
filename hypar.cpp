@@ -19,7 +19,6 @@ void HyPar::reread() {
     fpgaMap.clear();
     contract_memo = std::stack<std::pair<int, int>>();
     existing_nodes.clear();
-    node2community.clear();
     memset(ceil_rescap, 0, sizeof(ceil_rescap));
     memset(mean_res, 0, sizeof(mean_res));
     //read
@@ -78,7 +77,6 @@ void HyPar::readAre(std::ifstream &are, std::unordered_map<std::string, int> &no
     N = nodes.size();
     ceil_size = double(N) / (K * parameter_t);
     existing_nodes.reserve(N);
-    node2community.reserve(N);
 }
 
 void HyPar::readNet(std::ifstream &net, std::unordered_map<std::string, int> &node2id) {
@@ -263,20 +261,6 @@ bool HyPar::_fpga_remove_force(int f, int u) {
     return fpgas[f].resValid;
 }
 
-// GHG gain functions
-int HyPar::_max_net_gain(int tf, int u) {
-    int gain = 0;
-    for (int net : nodes[u].nets) {
-        if (nets[net].size == 1) {
-            continue;
-        }
-        if (nets[net].fpgas[tf]) {
-            gain += nets[net].weight;
-        }
-    }
-    return gain;
-}
-
 int HyPar::_FM_gain(int of, int tf, int u) {
     int gain = 0;
     for (int net : nodes[u].nets) {
@@ -288,22 +272,6 @@ int HyPar::_FM_gain(int of, int tf, int u) {
         }
         if (nets[net].fpgas[of] && nets[net].fpgas[of] == nets[net].size) {
             gain -= nets[net].weight;
-        }
-    }
-    return gain;
-}
-
-int HyPar::_connectivity_gain(int of, int tf, int u) {
-    int gain = 0;
-    for (int net : nodes[u].nets) {
-        if (nets[net].size == 1) {
-            continue;
-        }
-        if (!nets[net].fpgas.count(tf)) {
-            gain -= nets[net].weight;
-        }
-        if (nets[net].fpgas.count(of) && nets[net].fpgas[of] == 1) {
-            gain += nets[net].weight;
         }
     }
     return gain;
@@ -349,10 +317,6 @@ int HyPar::_gain_function(int of, int tf, int u, int sel){
             return _hop_gain(of, tf, u);
         case 1:
             return _FM_gain(of, tf, u);
-        case 2:
-            return _max_net_gain(tf, u);
-        case 3:
-            return _connectivity_gain(of, tf, u);
         default:
             return 0;
     }
@@ -370,20 +334,6 @@ void HyPar::_cal_gain(int u, int f, int sel, std::unordered_map<std::pair<int, i
     }
 }
 
-// GHG gain functions
-void HyPar::_max_net_gain(std::unordered_set<int> &tfs, int u, std::unordered_map<int, int> &gain_map) {
-    for (int net : nodes[u].nets) {
-        if (nets[net].size == 1) {
-            continue;
-        }
-        for (int tf : tfs){
-            if (nets[net].fpgas[tf]) {
-                gain_map[tf] += nets[net].weight;
-            }
-        }
-    }
-}
-
 void HyPar::_FM_gain(int of, std::unordered_set<int> &tfs, int u, std::unordered_map<int, int> &gain_map) {
     for (int net : nodes[u].nets) {
         if (nets[net].size == 1) {
@@ -394,22 +344,6 @@ void HyPar::_FM_gain(int of, std::unordered_set<int> &tfs, int u, std::unordered
                 gain_map[tf] += nets[net].weight;
             }
             if (nets[net].fpgas[tf] && nets[net].fpgas[of] == 1) {
-                gain_map[tf] -= nets[net].weight;
-            }
-        }
-    }
-}
-
-void HyPar::_connectivity_gain(int of, std::unordered_set<int> &tfs, int u, std::unordered_map<int, int> &gain_map) {
-    for (int net : nodes[u].nets) {
-        if (nets[net].size == 1) {
-            continue;
-        }
-        for (int tf : tfs) {
-            if (nets[net].fpgas[tf] && nets[net].fpgas[tf] == 1) {
-                gain_map[tf] += nets[net].weight;
-            }
-            if (nets[net].fpgas[of] && nets[net].fpgas[of] == 1) {
                 gain_map[tf] -= nets[net].weight;
             }
         }
@@ -459,12 +393,6 @@ void HyPar::_gain_function(int of, std::unordered_set<int> &tf, int u, int sel, 
             break;
         case 1:
             _FM_gain(of, tf, u, gain_map);
-            break;
-        case 2:
-            _max_net_gain(tf, u, gain_map);
-            break;
-        case 3:
-            _connectivity_gain(of, tf, u, gain_map);
             break;
     }
 }
@@ -590,56 +518,40 @@ void HyPar::evaluate(bool &valid, long long &hop) {
 }
 
 void HyPar::run() {
-    if (N < 1e4) {
-        preprocess();
+    if (N < 1e2) {
         coarsen();
         initial_partition();
         refine();
     } else if (N < 1e5) {
-        preprocess();
         coarsen();
         fast_initial_partition();
         fast_refine();
     } else {
-        preprocess();
-        fast_coarsen();
+        coarsen();
         SCLa_propagation();
         only_fast_refine();
     }
 }
 
 void HyPar::run(bool &valid, long long &hop) {
-    if (N < 1e4) {
-        preprocess();
+    if (N < 1e2) {
         coarsen();
         initial_partition();
         refine();
     } else if (N < 1e5) {
-        preprocess();
         coarsen();
         fast_initial_partition();
         fast_refine();
     } else {
-        preprocess();
-        fast_coarsen();
+        coarsen();
         SCLa_propagation();
         only_fast_refine();
     }
     evaluate(valid, hop);
 }
 
-void HyPar::run_before_coarsen() {
-    if (N < 1e5) {
-        preprocess();
-        coarsen();
-    } else {
-        preprocess();
-        fast_coarsen();
-    }
-}
-
 void HyPar::run_after_coarsen(bool &valid, long long &hop) {
-    if (N < 1e4) {
+    if (N < 1e2) {
         initial_partition();
         refine();
     } else if (N < 1e5) {

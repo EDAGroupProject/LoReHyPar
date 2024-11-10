@@ -86,7 +86,6 @@ private:
     int parameter_l = 20; // parameter, do not evaluate nets with size more than parameter_l
     int parameter_tau = 5; // parameter, in SCLa propagation, the tau of the neighbors get the same label
     std::unordered_set<int> existing_nodes;
-    std::unordered_map<int, int> node2community;
     std::stack<std::pair<int, int>> contract_memo;
     double ceil_rescap[NUM_RES]{}, ceil_size{};
     double mean_res[NUM_RES]{};
@@ -98,16 +97,12 @@ private:
     bool _fpga_add_try(int f, int u);
     bool _fpga_add_force(int f, int u);
     bool _fpga_remove_force(int f, int u);
-    int _max_net_gain(int tf, int u);
     int _FM_gain(int of, int tf, int u);
     int _hop_gain(int of, int tf, int u);
-    int _connectivity_gain(int of, int tf, int u);
     int _gain_function(int of, int tf, int u, int sel = 0);
     void _cal_gain(int u, int f, int sel, std::unordered_map<std::pair<int, int>, int, pair_hash> &gain_map);
-    void _max_net_gain(std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
     void _FM_gain(int of, std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
     void _hop_gain(int of, std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
-    void _connectivity_gain(int of, std::unordered_set<int> &tf, int u, std::unordered_map<int, int> &gain_map);
     void _gain_function(int of, std::unordered_set<int> &tf, int u, int sel, std::unordered_map<int, int> &gain_map);
     void _cal_gain(int u, int f, int sel, std::priority_queue<std::tuple<int, int, int>> &gain_map);
     void _get_eligible_fpga(int u, std::unordered_set<int> &toFpga);
@@ -129,20 +124,13 @@ public:
     void printOut(std::ofstream &out);
     void printOut(Result &res, long long hop);
 
-    // Preprocessing
-    void preprocess();
-    void community_detect();
-
     // Coarsening
     void coarsen();
-    void fast_coarsen();
     bool coarsen_by_nets();
-    bool coarsen_by_nets_in_community();
 
     // Initial Partitioning
     void initial_partition();
     void fast_initial_partition();
-    void bfs_partition();
     void SCLa_propagation();
     void greedy_hypergraph_growth(int sel);
     void activate_max_hop_nodes(int sel);

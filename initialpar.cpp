@@ -1,113 +1,5 @@
 #include <hypar.hpp>
 
-void HyPar::bfs_partition() {
-    std::vector<int> nodeVec(existing_nodes.begin(), existing_nodes.end());
-    std::mt19937 rng = get_rng();
-    std::uniform_int_distribution<int> dis(0, K - 1);
-    std::shuffle(nodeVec.begin(), nodeVec.end(), rng);
-    for (auto it = nodeVec.begin(); it != nodeVec.end();) {
-        if (nodes[*it].fpga != -1) {
-            it = nodeVec.erase(it);
-            continue;
-        } 
-        int f = dis(rng);
-        if (_fpga_add_try(f, *it)) {
-            nodes[*it].fpga = f;
-            fpgas[f].nodes.insert(*it);
-            _fpga_add_force(f, *it);
-            std::queue<int> q;
-            q.push(*it);
-            while (!q.empty()) {
-                int u = q.front();
-                q.pop();
-                for (int net : nodes[u].nets) {
-                    ++nets[net].fpgas[f]; // ready for the connectivity calculation
-                    for (int i = 0; i < nets[net].size; ++i) {
-                        int v = nets[net].nodes[i];
-                        if (nodes[v].fpga == -1 && _fpga_add_try(f, v)) {
-                            nodes[v].fpga = f;
-                            fpgas[f].nodes.insert(v);
-                            _fpga_add_force(f, v);
-                            q.push(v);
-                        }
-                    }
-                }
-            }
-            it = nodeVec.erase(it);
-        } else {
-            ++it;
-        }
-    }
-    // here we can choose the best fpga for the remaining nodes
-    std::vector<int> fpgaVec(K);
-    std::iota(fpgaVec.begin(), fpgaVec.end(), 0);
-    std::shuffle(fpgaVec.begin(), fpgaVec.end(), rng);
-    if (!nodeVec.empty()) {
-        for (int u : nodeVec) {
-            if (nodes[u].fpga != -1) {
-                continue;
-            }
-            std::unordered_set<int> toFpga;
-            std::vector<int> tfs(K, 0);
-            for (int net : nodes[u].nets) {
-                int s = nets[net].source;
-                if (u == s) {
-                    for (const auto &[f, cnt] : nets[net].fpgas) {
-                        if (cnt) {
-                            for (auto it = toFpga.begin(); it != toFpga.end();) {
-                                int tf = *it;
-                                tfs[tf] += nets[net].size;
-                                if (fpgaMap[f][tf] > maxHop) {
-                                    it = toFpga.erase(it);
-                                } else {
-                                    ++it;
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    int sf = nodes[s].fpga;
-                    if (sf == -1) {
-                        continue;
-                    }
-                    for (auto it = toFpga.begin(); it != toFpga.end();) {
-                        int tf = *it;
-                        tfs[tf] += nets[net].size;
-                        if (fpgaMap[sf][tf] > maxHop) {
-                            it = toFpga.erase(it);
-                        } else {
-                            ++it;
-                        }
-                    }
-                }
-            }
-            if (toFpga.empty()) {
-                int max_tf = std::max_element(tfs.begin(), tfs.end()) - tfs.begin();
-                nodes[u].fpga = max_tf;
-                fpgas[max_tf].nodes.insert(u);
-                _fpga_add_force(max_tf, u);
-                for (int net : nodes[u].nets) {
-                    ++nets[net].fpgas[max_tf];
-                }
-                continue;
-            }
-            int max_tf = -1, max_gain = -INT_MAX;
-            for (int tf : toFpga) {
-                if (tfs[tf] > max_gain) {
-                    max_gain = tfs[tf];
-                    max_tf = tf;
-                }
-            }
-            nodes[u].fpga = max_tf;
-            fpgas[max_tf].nodes.insert(u);
-            _fpga_add_force(max_tf, u);
-            for (int net : nodes[u].nets) {
-                ++nets[net].fpgas[max_tf];
-            }
-        }
-    }
-}
-
 void HyPar::SCLa_propagation() {
     std::mt19937 rng = get_rng();
     std::vector<int> fpgaVec(K);
@@ -368,8 +260,7 @@ void HyPar::initial_partition() {
     bool bestvalid = false, valid;
     long long minHop = LONG_LONG_MAX, hop;
     HyPar best, tmp;
-    int num = 1 + 40 / (1 + std::log(N) / std::log(10));
-    for (int i = 0; i < num; ++i){
+    for (int i = 0; i < 20; ++i){
         tmp = *this;
         tmp.SCLa_propagation();
         tmp.evaluate(valid, hop);
@@ -383,7 +274,7 @@ void HyPar::initial_partition() {
     bool flag = true;
     while (flag) {
         flag = false;
-        greedy_hypergraph_growth(0);
+        greedy_hypergraph_growth(1);
         evaluate(valid, hop);
         if (bestvalid <= valid && hop < minHop) {
             flag = true;
@@ -401,7 +292,7 @@ void HyPar::fast_initial_partition() {
     bool flag = true;
     while (flag) {
         flag = false;
-        greedy_hypergraph_growth(0);
+        greedy_hypergraph_growth(1);
         evaluate(valid, hop);
         if (bestvalid <= valid && hop < minHop) {
             flag = true;
