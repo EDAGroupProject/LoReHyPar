@@ -112,9 +112,8 @@ public:
     HyPar() = default;
     HyPar(std::string _inputDir, std::string _outputFile);
 
-    int N; // number of nodes
+    int pin; // number of pins
 
-    void reread();
     void readInfo(std::ifstream &info, std::unordered_map<std::string, int> &fpga2id);
     void readAre(std::ifstream &are, std::unordered_map<std::string, int> &node2id);
     void readNet(std::ifstream &net, std::unordered_map<std::string, int> &node2id);
@@ -131,6 +130,7 @@ public:
     // Initial Partitioning
     void initial_partition();
     void fast_initial_partition();
+    void bfs_partition();
     void SCLa_propagation();
     void greedy_hypergraph_growth(int sel);
     void activate_max_hop_nodes(int sel);
@@ -144,10 +144,8 @@ public:
     void only_fast_k_way_localized_refine(int num, int sel);
     void add_logic_replication(long long &hop);
 
-    void run();
     void run(bool &valid, long long &hop);
-    void run_before_coarsen();
-    void run_after_coarsen(bool &valid, long long &hop);
+    void run_nc(bool &valid, long long &hop);
     void evaluate(bool &valid, long long &hop);
 };
 

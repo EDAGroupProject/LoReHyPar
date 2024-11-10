@@ -196,7 +196,7 @@ void HyPar::only_fast_refine() {
 // didn't consider the of the influence of the formerly replicated nodes on the gain calculation
 // the hop gain calculation is inaccurate
 void HyPar::add_logic_replication(long long &hop) {
-    std::vector<std::unordered_set<int>> sources(N);
+    std::vector<std::unordered_set<int>> sources(nodes.size());
     std::vector<int> net_hop(nets.size(), 0);
     std::vector<int> net_order{};
     std::vector<std::vector<int>> net_fpgas(nets.size());
