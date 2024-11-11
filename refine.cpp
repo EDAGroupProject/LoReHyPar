@@ -198,26 +198,39 @@ void HyPar::only_fast_refine() {
 void HyPar::add_logic_replication(long long &hop) {
     std::vector<std::unordered_set<int>> sources(N);
     std::vector<int> net_hop(nets.size(), 0);
-    std::vector<int> net_order{};
+    std::vector<int> net_order;
     std::vector<std::vector<int>> net_fpgas(nets.size());
+
     for (size_t i = 0; i < nets.size(); ++i) {
         const auto &net = nets[i];
         int s = net.source;
         int sf = nodes[s].fpga;
-        for (int j = 0; j < net.size; ++j) {
-            int u = net.nodes[j];
-            if (u == s) {
-                continue;
-            }
-            sources[u].insert(i);
+        
+        for (int u : net.nodes) {
+            if (u != s) sources[u].insert(i);
         }
-        for (const auto &[f, cnt] : net.fpgas) {
-            if (cnt == 0 || f == sf) {
-                continue;
-            }
-            net_hop[i] += net.weight * fpgaMap[sf][f];
-            net_fpgas[i].push_back(f);
+
+        int total_hop = 0;
+int threshold = 2;
+for (const auto &[f, cnt] : net.fpgas) {
+    if (cnt > 0 && f != sf) {
+        int hop_distance = fpgaMap[sf][f];
+        if (hop_distance <= threshold) {
+            total_hop += net.weight * std::log(hop_distance + 1);
+            //total_hop += net.weight * hop_distance;
+        } else {
+            total_hop += net.weight * (threshold + (hop_distance - threshold) * 0.5);
         }
+        net_fpgas[i].push_back(f);
+    }
+}
+
+
+
+
+
+        
+        net_hop[i] = total_hop;
         if (!net_fpgas[i].empty()) {
             net_order.push_back(i);
             std::sort(net_fpgas[i].begin(), net_fpgas[i].end(), [&](int a, int b) {
@@ -225,9 +238,11 @@ void HyPar::add_logic_replication(long long &hop) {
             });
         }
     }
+    
     std::sort(net_order.begin(), net_order.end(), [&](int a, int b) {
         return net_hop[a] > net_hop[b];
     });
+
     while (!net_order.empty()) {
         for (auto it = net_order.begin(); it != net_order.end();) {
             int i = *it;
@@ -236,56 +251,48 @@ void HyPar::add_logic_replication(long long &hop) {
             int sf = nodes[s].fpga;
             int tf = net_fpgas[i].back();
             net_fpgas[i].pop_back();
-            if (net_fpgas[i].empty()) {
-                it = net_order.erase(it);
-            } else {
-                ++it;
-            }
-            if (_fpga_add_try(tf, s)){
-                int gain = 0;
-                int flag = false;
+
+            if (net_fpgas[i].empty()) it = net_order.erase(it);
+            else ++it;
+
+            if (_fpga_add_try(tf, s)) {
+                bool flag = false;
                 int conn = fpgas[tf].conn - net.weight;
+                int gain = net.weight * fpgaMap[sf][tf];
+
                 for (int on : sources[s]) {
                     int osf = nodes[nets[on].source].fpga;
                     if (nets[on].fpgas[tf] == 0) {
-                        // max hop constraint
-                        if (fpgaMap[osf][tf] > maxHop) {
-                            flag = true;
-                            break;
-                        }
+                        if (fpgaMap[osf][tf] > maxHop) { flag = true; break; }
                         gain -= nets[on].weight * fpgaMap[osf][tf];
                         conn += nets[on].weight;
                     }
                     if (nets[on].fpgas[osf] == nets[on].size && osf != tf) {
-                        // connectivity constraint
                         if (fpgas[osf].conn + nets[on].weight > fpgas[osf].maxConn) {
                             flag = true;
                             break;
                         }
                     }
                 }
-                if (!flag && conn <= fpgas[tf].maxConn) {
-                    gain += net.weight * fpgaMap[sf][tf];
-                    if (gain > 0) {
-                        hop -= gain;
-                        nodes.emplace_back();
-                        int new_s = nodes.size() - 1;
-                        nodes[new_s].name = nodes[s].name + "*";
-                        nodes[new_s].rep = s;
-                        nodes[new_s].fpga = tf;
-                        fpgas[tf].nodes.insert(new_s);
-                        _fpga_add_force(tf, s);
-                        fpgas[tf].conn = conn;
-                        net.size -= net.fpgas[tf];
-                        net.fpgas[tf] = 0;
-                        for (int on : sources[s]) {
-                            nets[on].nodes.push_back(new_s);
-                            ++nets[on].size;
-                            ++nets[on].fpgas[tf];
-                            int osf = nodes[nets[on].source].fpga;
-                            if (nets[on].fpgas[osf] == nets[on].size - 1) {
-                                fpgas[osf].conn += nets[on].weight;
-                            }
+
+                if (!flag && conn <= fpgas[tf].maxConn && gain > 0) {
+                    hop -= gain;
+                    int new_s = nodes.size();
+                    nodes.push_back(Node{ nodes[s].name + "*", s, tf });
+                    fpgas[tf].nodes.insert(new_s);
+                    _fpga_add_force(tf, s);
+                    fpgas[tf].conn = conn;
+                    
+                    net.size -= net.fpgas[tf];
+                    net.fpgas[tf] = 0;
+
+                    for (int on : sources[s]) {
+                        nets[on].nodes.push_back(new_s);
+                        nets[on].size++;
+                        nets[on].fpgas[tf]++;
+                        int osf = nodes[nets[on].source].fpga;
+                        if (nets[on].fpgas[osf] == nets[on].size - 1) {
+                            fpgas[osf].conn += nets[on].weight;
                         }
                     }
                 }
