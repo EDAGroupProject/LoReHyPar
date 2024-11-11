@@ -36,9 +36,6 @@ bool HyPar::coarsen_by_nets() {
 }
 
 void HyPar::coarsen() {
-    std::vector<int> nodesvec(N);
-    std::iota(nodesvec.begin(), nodesvec.end(), 0);
-    existing_nodes.insert(nodesvec.begin(), nodesvec.end());
     while (coarsen_by_nets() && existing_nodes.size() >= static_cast<size_t>(K * parameter_t)) {
         continue;
     }

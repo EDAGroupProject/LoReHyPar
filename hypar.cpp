@@ -10,26 +10,6 @@ HyPar::HyPar(std::string _inputDir, std::string _outputFile) : inputDir(_inputDi
     readTopo(topo, fpga2id);
 }
 
-void HyPar::reread() {
-    std::ifstream info(inputDir + "/design.info"), are(inputDir + "/design.are"), net(inputDir + "/design.net"), topo(inputDir + "/design.topo");
-    //clear
-    fpgas.clear();
-    nodes.clear();
-    nets.clear();
-    fpgaMap.clear();
-    contract_memo = std::stack<std::pair<int, int>>();
-    existing_nodes.clear();
-    memset(ceil_rescap, 0, sizeof(ceil_rescap));
-    memset(mean_res, 0, sizeof(mean_res));
-    //read
-    std::unordered_map<std::string, int> node2id;
-    std::unordered_map<std::string, int> fpga2id;
-    readInfo(info, fpga2id);
-    readAre(are, node2id);
-    readNet(net, node2id);
-    readTopo(topo, fpga2id);
-}
-
 void HyPar::readInfo(std::ifstream &info, std::unordered_map<std::string, int> &fpga2id) {
     std::string name;
     fpgas.reserve(64);
@@ -74,16 +54,19 @@ void HyPar::readAre(std::ifstream &are, std::unordered_map<std::string, int> &no
     for (int i = 0; i < NUM_RES; ++i) {
         mean_res[i] = mean_res[i] / nodes.size();
     }
-    N = nodes.size();
-    ceil_size = double(N) / (K * parameter_t);
-    existing_nodes.reserve(N);
+    ceil_size = double(nodes.size()) / (K * parameter_t);
+    existing_nodes.reserve(nodes.size());
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        existing_nodes.insert(i);
+    }
 }
 
 void HyPar::readNet(std::ifstream &net, std::unordered_map<std::string, int> &node2id) {
     std::string line;
     std::string name;
     int id;
-    nets.reserve(2 * N);
+    nets.reserve(10 * nodes.size());
+    pin = 0;
     while (std::getline(net, line)) {
         std::istringstream iss(line);
         nets.emplace_back();
@@ -100,6 +83,7 @@ void HyPar::readNet(std::ifstream &net, std::unordered_map<std::string, int> &no
             nodes[id].nets.insert(nets.size() - 1);
         }
         nets.back().size = nets.back().nodes.size();
+        pin += nets.back().size;
     }
 }
 
@@ -517,48 +501,33 @@ void HyPar::evaluate(bool &valid, long long &hop) {
     }
 }
 
-void HyPar::run() {
-    if (N < 1e2) {
-        coarsen();
-        initial_partition();
-        refine();
-    } else if (N < 1e5) {
-        coarsen();
-        fast_initial_partition();
-        fast_refine();
-    } else {
-        coarsen();
-        SCLa_propagation();
-        only_fast_refine();
-    }
-}
-
 void HyPar::run(bool &valid, long long &hop) {
-    if (N < 1e2) {
-        coarsen();
+    if (pin <= 1e2) {
         initial_partition();
         refine();
-    } else if (N < 1e5) {
+    } else if (pin <= 2e5) {
         coarsen();
         fast_initial_partition();
         fast_refine();
     } else {
         coarsen();
         SCLa_propagation();
+        activate_max_hop_nodes(0);
         only_fast_refine();
     }
     evaluate(valid, hop);
 }
 
-void HyPar::run_after_coarsen(bool &valid, long long &hop) {
-    if (N < 1e2) {
+void HyPar::run_nc(bool &valid, long long &hop) {
+    if (pin <= 1e2) {
         initial_partition();
         refine();
-    } else if (N < 1e5) {
+    } else if (pin <= 2e5) {
         fast_initial_partition();
         fast_refine();
     } else {
         SCLa_propagation();
+        activate_max_hop_nodes(0);
         only_fast_refine();
     }
     evaluate(valid, hop);
