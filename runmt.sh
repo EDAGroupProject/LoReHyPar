@@ -6,7 +6,7 @@ if [ $# -lt 1 ]; then
 fi
 
 CASE=$1
-ITERATIONS=1  # 默认运行一次
+ITERATIONS=4  # 默认运行一次
 
 # 解析参数
 if [ "$2" == "-a" ] && [ -n "$3" ]; then

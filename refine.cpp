@@ -195,7 +195,7 @@ void HyPar::only_fast_refine() {
 
 // didn't consider the of the influence of the formerly replicated nodes on the gain calculation
 // the hop gain calculation is inaccurate
-void HyPar::add_logic_replication(long long &hop) {
+void HyPar::add_logic_replication_og(long long &hop) {
     std::vector<std::unordered_set<int>> sources(nodes.size());
     std::vector<int> net_hop(nets.size(), 0);
     std::vector<int> net_order;
@@ -225,11 +225,6 @@ void HyPar::add_logic_replication(long long &hop) {
             }
         }
 
-
-
-
-
-        
         net_hop[i] = total_hop;
         if (!net_fpgas[i].empty()) {
             net_order.push_back(i);
@@ -297,6 +292,193 @@ void HyPar::add_logic_replication(long long &hop) {
                     }
                 }
             }
+        }
+    }
+}
+
+void HyPar::add_logic_replication_pq(long long &hop) {
+    std::vector<std::unordered_set<int>> sources(nodes.size());
+    std::priority_queue<std::tuple<int, int, int>> gain_map; // (gain, net, fpga)
+    for (size_t i = 0; i < nets.size(); ++i) {
+        const auto &net = nets[i];
+        int s = net.source;
+        for (int u : net.nodes) {
+            if (u != s) sources[u].insert(i);
+        }
+    }
+    for (size_t i = 0; i < nets.size(); ++i) {
+        const auto &net = nets[i];
+        int s = net.source;
+        int sf = nodes[s].fpga;
+        for (const auto &[tf, cnt] : net.fpgas) {
+            if (cnt > 0 && tf != sf && _fpga_add_try(tf, s)) {
+                bool flag = false;
+                int conn = fpgas[tf].conn - net.weight;
+                int gain = net.weight * fpgaMap[sf][tf];
+                for (int on : sources[s]) {
+                    int osf = nodes[nets[on].source].fpga;
+                    if (nets[on].fpgas[tf] == 0) {
+                        if (fpgaMap[osf][tf] > maxHop) { 
+                            flag = true; 
+                            break; 
+                        }
+                        gain -= nets[on].weight * fpgaMap[osf][tf];
+                        conn += nets[on].weight;
+                    }
+                    if (nets[on].fpgas[osf] == nets[on].size && osf != tf) {
+                        if (fpgas[osf].conn + nets[on].weight > fpgas[osf].maxConn) {
+                            flag = true;
+                            break;
+                        }
+                    }
+                }
+                if (!flag && conn <= fpgas[tf].maxConn && gain > 0) {
+                    gain_map.push({gain, i, tf});
+                }
+            }
+        }
+    }
+    while (!gain_map.empty()) {
+        auto [gain, i, tf] = gain_map.top();
+        gain_map.pop();
+        auto &net = nets[i];
+        int s = net.source;
+        int sf = nodes[s].fpga;
+        if (_fpga_add_try(tf, s)) {
+            bool flag = false;
+            int conn = fpgas[tf].conn - net.weight;
+            int gain = net.weight * fpgaMap[sf][tf];
+
+            for (int on : sources[s]) {
+                int osf = nodes[nets[on].source].fpga;
+                if (nets[on].fpgas[tf] == 0) {
+                    if (fpgaMap[osf][tf] > maxHop) { flag = true; break; }
+                    gain -= nets[on].weight * fpgaMap[osf][tf];
+                    conn += nets[on].weight;
+                }
+                if (nets[on].fpgas[osf] == nets[on].size && osf != tf) {
+                    if (fpgas[osf].conn + nets[on].weight > fpgas[osf].maxConn) {
+                        flag = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!flag && conn <= fpgas[tf].maxConn && gain > 0) {
+                hop -= gain;
+                int new_s = nodes.size();
+                nodes.push_back(Node{ nodes[s].name + "*", s, tf });
+                fpgas[tf].nodes.insert(new_s);
+                _fpga_add_force(tf, s);
+                fpgas[tf].conn = conn;
+                    
+                net.size -= net.fpgas[tf];
+                net.fpgas[tf] = 0;
+
+                for (int on : sources[s]) {
+                    nets[on].nodes.push_back(new_s);
+                    nets[on].size++;
+                    nets[on].fpgas[tf]++;
+                    int osf = nodes[nets[on].source].fpga;
+                    if (nets[on].fpgas[osf] == nets[on].size - 1) {
+                        fpgas[osf].conn += nets[on].weight;
+                    }
+                }
+            }
+        
+        }
+    }
+}
+
+void HyPar::add_logic_replication_rd(long long &hop) {
+    std::vector<std::unordered_set<int>> sources(nodes.size());
+    std::vector<std::pair<int, int>> gain_map; // (net, fpga)
+    for (size_t i = 0; i < nets.size(); ++i) {
+        const auto &net = nets[i];
+        int s = net.source;
+        for (int u : net.nodes) {
+            if (u != s) sources[u].insert(i);
+        }
+    }
+    for (size_t i = 0; i < nets.size(); ++i) {
+        const auto &net = nets[i];
+        int s = net.source;
+        int sf = nodes[s].fpga;
+        for (const auto &[tf, cnt] : net.fpgas) {
+            if (cnt > 0 && tf != sf && _fpga_add_try(tf, s)) {
+                bool flag = false;
+                int conn = fpgas[tf].conn - net.weight;
+                int gain = net.weight * fpgaMap[sf][tf];
+                for (int on : sources[s]) {
+                    int osf = nodes[nets[on].source].fpga;
+                    if (nets[on].fpgas[tf] == 0) {
+                        if (fpgaMap[osf][tf] > maxHop) { 
+                            flag = true; 
+                            break; 
+                        }
+                        gain -= nets[on].weight * fpgaMap[osf][tf];
+                        conn += nets[on].weight;
+                    }
+                    if (nets[on].fpgas[osf] == nets[on].size && osf != tf) {
+                        if (fpgas[osf].conn + nets[on].weight > fpgas[osf].maxConn) {
+                            flag = true;
+                            break;
+                        }
+                    }
+                }
+                if (!flag && conn <= fpgas[tf].maxConn && gain > 0) {
+                    gain_map.push_back({i, tf});
+                }
+            }
+        }
+    }
+    std::shuffle(gain_map.begin(), gain_map.end(), get_rng());
+    for (auto [i, tf] : gain_map) {
+        auto &net = nets[i];
+        int s = net.source;
+        int sf = nodes[s].fpga;
+        if (_fpga_add_try(tf, s)) {
+            bool flag = false;
+            int conn = fpgas[tf].conn - net.weight;
+            int gain = net.weight * fpgaMap[sf][tf];
+
+            for (int on : sources[s]) {
+                int osf = nodes[nets[on].source].fpga;
+                if (nets[on].fpgas[tf] == 0) {
+                    if (fpgaMap[osf][tf] > maxHop) { flag = true; break; }
+                    gain -= nets[on].weight * fpgaMap[osf][tf];
+                    conn += nets[on].weight;
+                }
+                if (nets[on].fpgas[osf] == nets[on].size && osf != tf) {
+                    if (fpgas[osf].conn + nets[on].weight > fpgas[osf].maxConn) {
+                        flag = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!flag && conn <= fpgas[tf].maxConn && gain > 0) {
+                hop -= gain;
+                int new_s = nodes.size();
+                nodes.push_back(Node{ nodes[s].name + "*", s, tf });
+                fpgas[tf].nodes.insert(new_s);
+                _fpga_add_force(tf, s);
+                fpgas[tf].conn = conn;
+                    
+                net.size -= net.fpgas[tf];
+                net.fpgas[tf] = 0;
+
+                for (int on : sources[s]) {
+                    nets[on].nodes.push_back(new_s);
+                    nets[on].size++;
+                    nets[on].fpgas[tf]++;
+                    int osf = nodes[nets[on].source].fpga;
+                    if (nets[on].fpgas[osf] == nets[on].size - 1) {
+                        fpgas[osf].conn += nets[on].weight;
+                    }
+                }
+            }
+        
         }
     }
 }

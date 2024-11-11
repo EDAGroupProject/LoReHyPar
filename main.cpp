@@ -43,7 +43,6 @@ void next_round(std::vector<std::shared_ptr<HyPar>> &hp_mt, std::vector<std::thr
     size_t bestid = -1;
     for (size_t i = 0; i < threads.size(); ++i) {
         threads[i].join();
-        std::cout << "Thread " << i << " finished." << std::endl;
         if (bestvalid < valid[i] || (bestvalid == valid[i] && hop[i] < besthop)) {
             bestid = i;
             besthop = hop[i];
@@ -51,13 +50,12 @@ void next_round(std::vector<std::shared_ptr<HyPar>> &hp_mt, std::vector<std::thr
         }
     }
     if (bestvalid) {
-        std::cout << "Best thread: " << bestid << std::endl;
         for (size_t i = 0; i < hp_mt.size(); ++i) {
             if (i != bestid) {
                 hp_mt[i].reset();
             }
         }
-        hp_mt[bestid]->add_logic_replication(besthop);
+        hp_mt[bestid]->add_logic_replication_pq(besthop);
         if (besthop < best_result.hop) {
             hp_mt[bestid]->printOut(best_result, besthop);
         }
@@ -95,18 +93,13 @@ int main(int argc, char **argv) {
     hp_mt[0]->coarsen();
     size_t m1 = get_memory_usage();
     size_t hp_memory = m1 - m0;
-    std::cout << "Memory Limit: " << MEMORY_LIMIT << std::endl;
-    std::cout << "hp Memory usage: " << hp_memory << std::endl;
     int num_threads = int(std::min(size_t(4), MEMORY_LIMIT /  (1 + hp_memory)));
-    std::cout << "num_threads: " << num_threads << std::endl;
     bool valid[num_threads]{}, bestvalid = false;
     long long hop[num_threads]{}, besthop = __LONG_LONG_MAX__;
     for (int i = 1; i < num_threads; ++i) {
         hp_mt.push_back(std::make_shared<HyPar>(*hp_mt[0]));
         size_t memory_usage = get_memory_usage();
-        std::cout << "Memory usage: " << memory_usage << std::endl;
         if (memory_usage + hp_memory >= MEMORY_LIMIT) {
-            std::cout << "Memory limit reached, stop pushing hp" << std::endl;
             num_threads = i + 1;
             break;
         }
@@ -117,7 +110,6 @@ int main(int argc, char **argv) {
     size_t bestid = -1;
     for (size_t i = 0; i < threads.size(); ++i) {
         threads[i].join();
-        std::cout << "Thread " << i << " finished." << std::endl;
         if (bestvalid < valid[i] || (bestvalid == valid[i] && hop[i] < besthop)) {
             bestid = i;
             besthop = hop[i];
@@ -125,31 +117,27 @@ int main(int argc, char **argv) {
         }
     }
     if (bestvalid) {
-        std::cout << "Best thread: " << bestid << std::endl;
         for (size_t i = 0; i < hp_mt.size(); ++i) {
             if (i != bestid) {
                 hp_mt[i].reset();
             }
         }
-        hp_mt[bestid]->add_logic_replication(besthop);
+        hp_mt[bestid]->add_logic_replication_pq(besthop);
         if (besthop < best_result.hop) {
             hp_mt[bestid]->printOut(best_result, besthop);
         }
         hp_mt[bestid].reset();
     }
     if (pin < 1e2) {
-        std::cout << "Start next round" << std::endl;
         for (int i = 0; i < 240; ++i) {
             next_round(hp_mt, threads, num_threads);
         }
     } else if (pin < 1e4) {
-        std::cout << "Start next round" << std::endl;
         for (int i = 0; i < 100; ++i) {
             next_round(hp_mt, threads, num_threads);
         }
     } else if (!bestvalid) {
         while (!bestvalid) {
-            std::cout << "Start next round" << std::endl;
             next_round(hp_mt, threads, num_threads);
             continue;
         }

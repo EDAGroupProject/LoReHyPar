@@ -259,13 +259,13 @@ void HyPar::activate_max_hop_nodes(int sel) {
 void HyPar::initial_partition() {
     bool bestvalid = false, valid;
     long long minHop = LONG_LONG_MAX, hop;
-    HyPar best, tmp;
+    HyPar best;
     for (int i = 0; i < 20; ++i){
-        tmp = *this;
+        HyPar tmp = *this;
         tmp.SCLa_propagation();
         tmp.evaluate(valid, hop);
-        if (bestvalid <= valid && hop < minHop) {
-            best = tmp;
+        if (bestvalid < valid || (bestvalid == valid && hop < minHop)) {
+            best = std::move(tmp);
             bestvalid = valid;
             minHop = hop;
         }
@@ -276,7 +276,7 @@ void HyPar::initial_partition() {
         flag = false;
         greedy_hypergraph_growth(1);
         evaluate(valid, hop);
-        if (bestvalid <= valid && hop < minHop) {
+        if (bestvalid < valid || (bestvalid == valid && hop < minHop)) {
             flag = true;
             bestvalid = valid;
             minHop = hop;
@@ -294,7 +294,7 @@ void HyPar::fast_initial_partition() {
         flag = false;
         greedy_hypergraph_growth(1);
         evaluate(valid, hop);
-        if (bestvalid <= valid && hop < minHop) {
+        if (bestvalid < valid || (bestvalid == valid && hop < minHop)) {
             flag = true;
             bestvalid = valid;
             minHop = hop;
