@@ -211,19 +211,19 @@ void HyPar::add_logic_replication(long long &hop) {
         }
 
         int total_hop = 0;
-int threshold = 2;
-for (const auto &[f, cnt] : net.fpgas) {
-    if (cnt > 0 && f != sf) {
-        int hop_distance = fpgaMap[sf][f];
-        if (hop_distance <= threshold) {
-            total_hop += net.weight * std::log(hop_distance + 1);
-            //total_hop += net.weight * hop_distance;
-        } else {
-            total_hop += net.weight * (threshold + (hop_distance - threshold) * 0.5);
+        int threshold = 2;
+        for (const auto &[f, cnt] : net.fpgas) {
+            if (cnt > 0 && f != sf) {
+                int hop_distance = fpgaMap[sf][f];
+                if (hop_distance <= threshold) {
+                    total_hop += net.weight * std::log(hop_distance + 1);
+                    //total_hop += net.weight * hop_distance;
+                } else {
+                    total_hop += net.weight * (threshold + (hop_distance - threshold) * 0.5);
+                }   
+                net_fpgas[i].push_back(f);
+            }
         }
-        net_fpgas[i].push_back(f);
-    }
-}
 
 
 
