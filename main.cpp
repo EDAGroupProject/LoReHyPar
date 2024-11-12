@@ -65,7 +65,6 @@ void next_round(std::vector<std::shared_ptr<HyPar>> &hp_mt, std::vector<std::thr
 }
 
 int main(int argc, char **argv) {
-    auto start = std::chrono::high_resolution_clock::now();
     std::ios::sync_with_stdio(false);
     assert(argc == 5);
     int opt;
@@ -144,7 +143,5 @@ int main(int argc, char **argv) {
     }
     std::ofstream out(outputFile);
     best_result.printOut(out);
-    auto end = std::chrono::high_resolution_clock::now();
-    std::cout << "Time: " << std::chrono::duration_cast<std::chrono::seconds>(end - start).count() << "s" << std::endl;
     return 0;
 }
