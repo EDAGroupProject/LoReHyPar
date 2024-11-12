@@ -43,6 +43,7 @@ void next_round(std::vector<std::shared_ptr<HyPar>> &hp_mt, std::vector<std::thr
     size_t bestid = -1;
     for (size_t i = 0; i < threads.size(); ++i) {
         threads[i].join();
+        hp_mt[bestid]->add_logic_replication_pq(besthop);
         if (bestvalid < valid[i] || (bestvalid == valid[i] && hop[i] < besthop)) {
             bestid = i;
             besthop = hop[i];
@@ -50,17 +51,20 @@ void next_round(std::vector<std::shared_ptr<HyPar>> &hp_mt, std::vector<std::thr
         }
     }
     if (bestvalid) {
-        for (size_t i = 0; i < hp_mt.size(); ++i) {
-            if (i != bestid) {
-                hp_mt[i].reset();
-            }
-        }
-        hp_mt[bestid]->add_logic_replication_pq(besthop);
-        if (besthop < best_result.hop) {
-            hp_mt[bestid]->printOut(best_result, besthop);
-        }
-        hp_mt[bestid].reset();
+        hp_mt[bestid]->printOut(best_result, besthop);
     }
+    // if (bestvalid) {
+    //     for (size_t i = 0; i < hp_mt.size(); ++i) {
+    //         if (i != bestid) {
+    //             hp_mt[i].reset();
+    //         }
+    //     }
+    //     hp_mt[bestid]->add_logic_replication_pq(besthop);
+    //     if (besthop < best_result.hop) {
+    //         hp_mt[bestid]->printOut(best_result, besthop);
+    //     }
+        // hp_mt[bestid].reset();
+    // }
 }
 
 int main(int argc, char **argv) {
@@ -110,24 +114,28 @@ int main(int argc, char **argv) {
     size_t bestid = -1;
     for (size_t i = 0; i < threads.size(); ++i) {
         threads[i].join();
+        hp_mt[i]->add_logic_replication_pq(hop[i]);
         if (bestvalid < valid[i] || (bestvalid == valid[i] && hop[i] < besthop)) {
             bestid = i;
             besthop = hop[i];
             bestvalid = valid[i];
         }
     }
-    if (bestvalid) {
-        for (size_t i = 0; i < hp_mt.size(); ++i) {
-            if (i != bestid) {
-                hp_mt[i].reset();
-            }
-        }
-        hp_mt[bestid]->add_logic_replication_pq(besthop);
-        if (besthop < best_result.hop) {
-            hp_mt[bestid]->printOut(best_result, besthop);
-        }
-        hp_mt[bestid].reset();
+    if(bestvalid) {
+        hp_mt[bestid]->printOut(best_result, besthop);
     }
+    // if (bestvalid) {
+    //     for (size_t i = 0; i < hp_mt.size(); ++i) {
+    //         if (i != bestid) {
+    //             hp_mt[i].reset();
+    //         }
+    //     }
+    //     hp_mt[bestid]->add_logic_replication_og(besthop);
+    //     if (besthop < best_result.hop) {
+    //         hp_mt[bestid]->printOut(best_result, besthop);
+    //     }
+    //     hp_mt[bestid].reset();
+    // }
     if (pin < 1e2) {
         for (int i = 0; i < 240; ++i) {
             next_round(hp_mt, threads, num_threads);
