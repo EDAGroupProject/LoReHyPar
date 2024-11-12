@@ -285,10 +285,12 @@ int HyPar::_hop_gain(int of, int tf, int u){
         } else {
             int sf = nodes[nets[net].source].fpga;
             if (nets[net].fpgas[of] == 1) {
-                gain += nets[net].weight * (fpgaMap[sf][of] - fpgaMap[sf][tf]);
+                gain += nets[net].weight * fpgaMap[sf][of];
             }
             if (nets[net].fpgas[tf] == 0) {
-                gain -= nets[net].weight * (fpgaMap[sf][of] - fpgaMap[sf][tf]);
+                gain -= nets[net].weight * fpgaMap[sf][tf];
+            } else if (nets[net].fpgas[tf] == nets[net].size - 1) {
+                gain += nets[net].weight * fpgaMap[sf][tf];
             }
         }
     }
@@ -360,10 +362,12 @@ void HyPar::_hop_gain(int of, std::unordered_set<int> &tfs, int u, std::unordere
             int sf = nodes[nets[net].source].fpga;
             for (int tf : tfs) {
                 if (nets[net].fpgas[of] == 1) {
-                    gain_map[tf] += nets[net].weight * (fpgaMap[sf][of] - fpgaMap[sf][tf]);
+                    gain_map[tf] += nets[net].weight * fpgaMap[sf][of];
                 }
                 if (nets[net].fpgas[tf] == 0) {
-                    gain_map[tf] -= nets[net].weight * (fpgaMap[sf][of] - fpgaMap[sf][tf]);
+                    gain_map[tf] -= nets[net].weight * fpgaMap[sf][tf];
+                } else if (nets[net].fpgas[tf] == nets[net].size - 1) {
+                    gain_map[tf] += nets[net].weight * fpgaMap[sf][tf];
                 }
             }
         }
@@ -493,7 +497,6 @@ void HyPar::evaluate(bool &valid, long long &hop) {
             hop += net.weight * fpgaMap[sf][f];
         }
     }
-    valid = true;
     for (const auto &fpga : fpgas) {
         if (!fpga.resValid || fpga.conn > fpga.maxConn) {
             valid = false;
@@ -501,7 +504,7 @@ void HyPar::evaluate(bool &valid, long long &hop) {
     }
 }
 
-void HyPar::run(bool &valid, long long &hop) {
+void HyPar::run() {
     if (pin <= 1e2) {
         initial_partition();
         refine();
@@ -515,10 +518,10 @@ void HyPar::run(bool &valid, long long &hop) {
         activate_max_hop_nodes(0);
         only_fast_refine();
     }
-    evaluate(valid, hop);
+    add_logic_replication_rd();
 }
 
-void HyPar::run_nc(bool &valid, long long &hop) {
+void HyPar::run_nc() {
     if (pin <= 1e2) {
         initial_partition();
         refine();
@@ -530,5 +533,5 @@ void HyPar::run_nc(bool &valid, long long &hop) {
         activate_max_hop_nodes(0);
         only_fast_refine();
     }
-    evaluate(valid, hop);
+    add_logic_replication_rd();
 }

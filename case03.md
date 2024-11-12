@@ -822,3 +822,344 @@ Average Total Hop Length = 15103.80
 ```
 
 # 所有线程pq
+
+# 线程pq,最好的pq+og
+
+```cpp
+eda240317@VM-0-14-ubuntu:~/lhc/LoReHyPar$ ./runmt.sh case03
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/eda240317/lhc/LoReHyPar/build
+[ 14%] Building CXX object CMakeFiles/LoReHyPar.dir/hypar.cpp.o
+[ 28%] Linking CXX static library libLoReHyPar.a
+[ 71%] Built target LoReHyPar
+[ 85%] Building CXX object CMakeFiles/partitioner.dir/main.cpp.o
+[100%] Linking CXX executable partitioner
+[100%] Built target partitioner
+Build succeeded.
+Test succeeded for iteration 1.
+Reading FPGA......
+Input FPGA Finished: 32
+Reading Node......
+Input Node Finished: 11451
+Reading Net......
+Input Net Finished: 31071
+Reading Solution......
+Input Topo Finished: 88
+Reading FPGA......
+Input Solution Finished: 14569
+----------------------------
+Resources of FPGA1: [ 4611 522 0 0 0 0 0 0 ]
+Resources of FPGA2: [ 4517 498 0 0 0 0 0 0 ]
+Resources of FPGA3: [ 4066 471 0 0 0 0 0 0 ]
+Resources of FPGA4: [ 4206 417 0 0 0 0 0 0 ]
+Resources of FPGA5: [ 3160 391 0 0 0 0 0 0 ]
+Resources of FPGA6: [ 4229 486 0 0 0 0 0 0 ]
+Resources of FPGA7: [ 2434 314 0 0 0 0 0 0 ]
+Resources of FPGA8: [ 3713 515 0 0 0 0 0 0 ]
+Resources of FPGA9: [ 3935 440 0 0 0 0 0 0 ]
+Resources of FPGA10: [ 4611 437 0 0 0 0 0 0 ]
+Resources of FPGA11: [ 3662 348 0 0 0 0 0 0 ]
+Resources of FPGA12: [ 4488 546 0 0 0 0 0 0 ]
+Resources of FPGA13: [ 2593 320 0 0 0 0 0 0 ]
+Resources of FPGA14: [ 3609 430 0 0 0 0 0 0 ]
+Resources of FPGA15: [ 3922 433 0 0 0 0 0 0 ]
+Resources of FPGA16: [ 2 0 0 0 0 0 0 0 ]
+Resources of FPGA17: [ 4076 466 0 0 0 0 0 0 ]
+Resources of FPGA18: [ 3588 364 0 0 0 0 0 0 ]
+Resources of FPGA19: [ 4157 510 0 0 0 0 0 0 ]
+Resources of FPGA20: [ 4295 501 0 0 0 0 0 0 ]
+Resources of FPGA21: [ 4477 556 0 0 0 0 0 0 ]
+Resources of FPGA22: [ 3854 422 0 0 0 0 0 0 ]
+Resources of FPGA23: [ 3630 418 0 0 0 0 0 0 ]
+Resources of FPGA24: [ 2559 329 0 0 0 0 0 0 ]
+Resources of FPGA25: [ 4275 389 0 0 0 0 0 0 ]
+Resources of FPGA26: [ 4611 454 0 0 0 0 0 0 ]
+Resources of FPGA27: [ 3674 332 0 0 0 0 0 0 ]
+Resources of FPGA28: [ 4328 435 0 0 0 0 0 0 ]
+Resources of FPGA29: [ 2137 224 0 0 0 0 0 0 ]
+Resources of FPGA30: [ 3935 424 0 0 0 0 0 0 ]
+Resources of FPGA31: [ 3975 395 0 0 0 0 0 0 ]
+Resources of FPGA32: [ 1 0 0 0 0 0 0 0 ]
+Total extern cut of FPGA1: 485
+Total extern cut of FPGA2: 432
+Total extern cut of FPGA3: 713
+Total extern cut of FPGA4: 459
+Total extern cut of FPGA5: 531
+Total extern cut of FPGA6: 887
+Total extern cut of FPGA7: 251
+Total extern cut of FPGA8: 220
+Total extern cut of FPGA9: 202
+Total extern cut of FPGA10: 624
+Total extern cut of FPGA11: 431
+Total extern cut of FPGA12: 503
+Total extern cut of FPGA13: 120
+Total extern cut of FPGA14: 270
+Total extern cut of FPGA15: 452
+Total extern cut of FPGA16: 2
+Total extern cut of FPGA17: 379
+Total extern cut of FPGA18: 393
+Total extern cut of FPGA19: 588
+Total extern cut of FPGA20: 498
+Total extern cut of FPGA21: 540
+Total extern cut of FPGA22: 474
+Total extern cut of FPGA23: 216
+Total extern cut of FPGA24: 294
+Total extern cut of FPGA25: 488
+Total extern cut of FPGA26: 660
+Total extern cut of FPGA27: 276
+Total extern cut of FPGA28: 665
+Total extern cut of FPGA29: 480
+Total extern cut of FPGA30: 236
+Total extern cut of FPGA31: 371
+Total extern cut of FPGA32: 1
+
+Congratulations! Solution is legal.
+----------------------------
+Total Hop Length = 14283
+----------------------------
+Test succeeded for iteration 2.
+Reading FPGA......
+Input FPGA Finished: 32
+Reading Node......
+Input Node Finished: 11451
+Reading Net......
+Input Net Finished: 31071
+Reading Solution......
+Input Topo Finished: 88
+Reading FPGA......
+Input Solution Finished: 14507
+----------------------------
+Resources of FPGA1: [ 4611 394 0 0 0 0 0 0 ]
+Resources of FPGA2: [ 4460 495 0 0 0 0 0 0 ]
+Resources of FPGA3: [ 4235 483 0 0 0 0 0 0 ]
+Resources of FPGA4: [ 3992 393 0 0 0 0 0 0 ]
+Resources of FPGA5: [ 4086 459 0 0 0 0 0 0 ]
+Resources of FPGA6: [ 4146 485 0 0 0 0 0 0 ]
+Resources of FPGA7: [ 4527 554 0 0 0 0 0 0 ]
+Resources of FPGA8: [ 3601 398 0 0 0 0 0 0 ]
+Resources of FPGA9: [ 3677 362 0 0 0 0 0 0 ]
+Resources of FPGA10: [ 4604 470 0 0 0 0 0 0 ]
+Resources of FPGA11: [ 3189 460 0 0 0 0 0 0 ]
+Resources of FPGA12: [ 4188 470 0 0 0 0 0 0 ]
+Resources of FPGA13: [ 2 0 0 0 0 0 0 0 ]
+Resources of FPGA14: [ 4228 415 0 0 0 0 0 0 ]
+Resources of FPGA15: [ 4116 485 0 0 0 0 0 0 ]
+Resources of FPGA16: [ 2379 325 0 0 0 0 0 0 ]
+Resources of FPGA17: [ 4265 385 0 0 0 0 0 0 ]
+Resources of FPGA18: [ 3896 352 0 0 0 0 0 0 ]
+Resources of FPGA19: [ 3930 429 0 0 0 0 0 0 ]
+Resources of FPGA20: [ 3958 421 0 0 0 0 0 0 ]
+Resources of FPGA21: [ 3798 309 0 0 0 0 0 0 ]
+Resources of FPGA22: [ 3952 440 0 0 0 0 0 0 ]
+Resources of FPGA23: [ 3707 523 0 0 0 0 0 0 ]
+Resources of FPGA24: [ 4452 539 0 0 0 0 0 0 ]
+Resources of FPGA25: [ 3698 452 0 0 0 0 0 0 ]
+Resources of FPGA26: [ 3856 457 0 0 0 0 0 0 ]
+Resources of FPGA27: [ 1 0 0 0 0 0 0 0 ]
+Resources of FPGA28: [ 3979 392 0 0 0 0 0 0 ]
+Resources of FPGA29: [ 4066 453 0 0 0 0 0 0 ]
+Resources of FPGA30: [ 3527 437 0 0 0 0 0 0 ]
+Resources of FPGA31: [ 4079 466 0 0 0 0 0 0 ]
+Resources of FPGA32: [ 2 4 0 0 0 0 0 0 ]
+Total extern cut of FPGA1: 533
+Total extern cut of FPGA2: 584
+Total extern cut of FPGA3: 611
+Total extern cut of FPGA4: 732
+Total extern cut of FPGA5: 787
+Total extern cut of FPGA6: 477
+Total extern cut of FPGA7: 293
+Total extern cut of FPGA8: 446
+Total extern cut of FPGA9: 292
+Total extern cut of FPGA10: 998
+Total extern cut of FPGA11: 557
+Total extern cut of FPGA12: 561
+Total extern cut of FPGA13: 2
+Total extern cut of FPGA14: 412
+Total extern cut of FPGA15: 583
+Total extern cut of FPGA16: 375
+Total extern cut of FPGA17: 507
+Total extern cut of FPGA18: 319
+Total extern cut of FPGA19: 458
+Total extern cut of FPGA20: 451
+Total extern cut of FPGA21: 562
+Total extern cut of FPGA22: 201
+Total extern cut of FPGA23: 224
+Total extern cut of FPGA24: 514
+Total extern cut of FPGA25: 207
+Total extern cut of FPGA26: 95
+Total extern cut of FPGA27: 1
+Total extern cut of FPGA28: 387
+Total extern cut of FPGA29: 701
+Total extern cut of FPGA30: 289
+Total extern cut of FPGA31: 390
+Total extern cut of FPGA32: 2
+
+Congratulations! Solution is legal.
+----------------------------
+Total Hop Length = 15149
+----------------------------
+Test succeeded for iteration 3.
+Reading FPGA......
+Input FPGA Finished: 32
+Reading Node......
+Input Node Finished: 11451
+Reading Net......
+Input Net Finished: 31071
+Reading Solution......
+Input Topo Finished: 88
+Reading FPGA......
+Input Solution Finished: 14549
+----------------------------
+Resources of FPGA1: [ 4429 478 0 0 0 0 0 0 ]
+Resources of FPGA2: [ 3989 456 0 0 0 0 0 0 ]
+Resources of FPGA3: [ 3974 424 0 0 0 0 0 0 ]
+Resources of FPGA4: [ 3809 383 0 0 0 0 0 0 ]
+Resources of FPGA5: [ 4226 417 0 0 0 0 0 0 ]
+Resources of FPGA6: [ 3566 400 0 0 0 0 0 0 ]
+Resources of FPGA7: [ 4063 439 0 0 0 0 0 0 ]
+Resources of FPGA8: [ 3913 437 0 0 0 0 0 0 ]
+Resources of FPGA9: [ 3701 452 0 0 0 0 0 0 ]
+Resources of FPGA10: [ 3930 427 0 0 0 0 0 0 ]
+Resources of FPGA11: [ 3850 465 0 0 0 0 0 0 ]
+Resources of FPGA12: [ 4158 418 0 0 0 0 0 0 ]
+Resources of FPGA13: [ 4545 522 0 0 0 0 0 0 ]
+Resources of FPGA14: [ 4175 466 0 0 0 0 0 0 ]
+Resources of FPGA15: [ 4079 446 0 0 0 0 0 0 ]
+Resources of FPGA16: [ 4604 442 0 0 0 0 0 0 ]
+Resources of FPGA17: [ 2 0 0 0 0 0 0 0 ]
+Resources of FPGA18: [ 4088 471 0 0 0 0 0 0 ]
+Resources of FPGA19: [ 1 2 0 0 0 0 0 0 ]
+Resources of FPGA20: [ 4441 533 0 0 0 0 0 0 ]
+Resources of FPGA21: [ 3960 440 0 0 0 0 0 0 ]
+Resources of FPGA22: [ 3742 454 0 0 0 0 0 0 ]
+Resources of FPGA23: [ 4611 520 0 0 0 0 0 0 ]
+Resources of FPGA24: [ 1264 176 0 0 0 0 0 0 ]
+Resources of FPGA25: [ 4557 543 0 0 0 0 0 0 ]
+Resources of FPGA26: [ 4583 545 0 0 0 0 0 0 ]
+Resources of FPGA27: [ 3857 452 0 0 0 0 0 0 ]
+Resources of FPGA28: [ 3903 353 0 0 0 0 0 0 ]
+Resources of FPGA29: [ 3972 398 0 0 0 0 0 0 ]
+Resources of FPGA30: [ 3631 337 0 0 0 0 0 0 ]
+Resources of FPGA31: [ 3613 407 0 0 0 0 0 0 ]
+Resources of FPGA32: [ 3 3 0 0 0 0 0 0 ]
+Total extern cut of FPGA1: 571
+Total extern cut of FPGA2: 473
+Total extern cut of FPGA3: 493
+Total extern cut of FPGA4: 463
+Total extern cut of FPGA5: 405
+Total extern cut of FPGA6: 450
+Total extern cut of FPGA7: 706
+Total extern cut of FPGA8: 517
+Total extern cut of FPGA9: 209
+Total extern cut of FPGA10: 463
+Total extern cut of FPGA11: 255
+Total extern cut of FPGA12: 480
+Total extern cut of FPGA13: 480
+Total extern cut of FPGA14: 559
+Total extern cut of FPGA15: 825
+Total extern cut of FPGA16: 816
+Total extern cut of FPGA17: 2
+Total extern cut of FPGA18: 374
+Total extern cut of FPGA19: 1
+Total extern cut of FPGA20: 582
+Total extern cut of FPGA21: 197
+Total extern cut of FPGA22: 228
+Total extern cut of FPGA23: 487
+Total extern cut of FPGA24: 91
+Total extern cut of FPGA25: 838
+Total extern cut of FPGA26: 700
+Total extern cut of FPGA27: 86
+Total extern cut of FPGA28: 324
+Total extern cut of FPGA29: 390
+Total extern cut of FPGA30: 563
+Total extern cut of FPGA31: 510
+Total extern cut of FPGA32: 3
+
+Congratulations! Solution is legal.
+----------------------------
+Total Hop Length = 14224
+----------------------------
+Test succeeded for iteration 4.
+Reading FPGA......
+Input FPGA Finished: 32
+Reading Node......
+Input Node Finished: 11451
+Reading Net......
+Input Net Finished: 31071
+Reading Solution......
+Input Topo Finished: 88
+Reading FPGA......
+Input Solution Finished: 14663
+----------------------------
+Resources of FPGA1: [ 4453 500 0 0 0 0 0 0 ]
+Resources of FPGA2: [ 3178 408 0 0 0 0 0 0 ]
+Resources of FPGA3: [ 4476 429 0 0 0 0 0 0 ]
+Resources of FPGA4: [ 3949 417 0 0 0 0 0 0 ]
+Resources of FPGA5: [ 3616 412 0 0 0 0 0 0 ]
+Resources of FPGA6: [ 4444 428 0 0 0 0 0 0 ]
+Resources of FPGA7: [ 4575 522 0 0 0 0 0 0 ]
+Resources of FPGA8: [ 3665 332 0 0 0 0 0 0 ]
+Resources of FPGA9: [ 4214 415 0 0 0 0 0 0 ]
+Resources of FPGA10: [ 3586 396 0 0 0 0 0 0 ]
+Resources of FPGA11: [ 3706 458 0 0 0 0 0 0 ]
+Resources of FPGA12: [ 4066 398 0 0 0 0 0 0 ]
+Resources of FPGA13: [ 3970 386 0 0 0 0 0 0 ]
+Resources of FPGA14: [ 4500 552 0 0 0 0 0 0 ]
+Resources of FPGA15: [ 4085 460 0 0 0 0 0 0 ]
+Resources of FPGA16: [ 2543 329 0 0 0 0 0 0 ]
+Resources of FPGA17: [ 2669 287 0 0 0 0 0 0 ]
+Resources of FPGA18: [ 3927 424 0 0 0 0 0 0 ]
+Resources of FPGA19: [ 0 0 0 0 0 0 0 0 ]
+Resources of FPGA20: [ 4080 466 0 0 0 0 0 0 ]
+Resources of FPGA21: [ 4148 514 0 0 0 0 0 0 ]
+Resources of FPGA22: [ 4364 503 0 0 0 0 0 0 ]
+Resources of FPGA23: [ 3930 435 0 0 0 0 0 0 ]
+Resources of FPGA24: [ 3693 500 0 0 0 0 0 0 ]
+Resources of FPGA25: [ 3855 452 0 0 0 0 0 0 ]
+Resources of FPGA26: [ 4170 509 0 0 0 0 0 0 ]
+Resources of FPGA27: [ 2 6 0 0 0 0 0 0 ]
+Resources of FPGA28: [ 3919 424 0 0 0 0 0 0 ]
+Resources of FPGA29: [ 4481 556 0 0 0 0 0 0 ]
+Resources of FPGA30: [ 1543 233 0 0 0 0 0 0 ]
+Resources of FPGA31: [ 3656 339 0 0 0 0 0 0 ]
+Resources of FPGA32: [ 3896 352 0 0 0 0 0 0 ]
+Total extern cut of FPGA1: 574
+Total extern cut of FPGA2: 528
+Total extern cut of FPGA3: 687
+Total extern cut of FPGA4: 459
+Total extern cut of FPGA5: 222
+Total extern cut of FPGA6: 836
+Total extern cut of FPGA7: 329
+Total extern cut of FPGA8: 277
+Total extern cut of FPGA9: 410
+Total extern cut of FPGA10: 449
+Total extern cut of FPGA11: 198
+Total extern cut of FPGA12: 723
+Total extern cut of FPGA13: 382
+Total extern cut of FPGA14: 431
+Total extern cut of FPGA15: 690
+Total extern cut of FPGA16: 297
+Total extern cut of FPGA17: 97
+Total extern cut of FPGA18: 453
+Total extern cut of FPGA19: 0
+Total extern cut of FPGA20: 381
+Total extern cut of FPGA21: 416
+Total extern cut of FPGA22: 503
+Total extern cut of FPGA23: 209
+Total extern cut of FPGA24: 228
+Total extern cut of FPGA25: 86
+Total extern cut of FPGA26: 586
+Total extern cut of FPGA27: 2
+Total extern cut of FPGA28: 240
+Total extern cut of FPGA29: 527
+Total extern cut of FPGA30: 214
+Total extern cut of FPGA31: 435
+Total extern cut of FPGA32: 327
+
+Congratulations! Solution is legal.
+----------------------------
+Total Hop Length = 13366
+----------------------------
+Average Total Hop Length = 14255.50
+```

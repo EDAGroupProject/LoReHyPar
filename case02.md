@@ -324,10 +324,15 @@ Score Variance = 9585.25
 ## priority queue
 
 ```cpp
-eda240317@VM-0-14-ubuntu:~/LoReHyPar$ ./runmt.sh case02
+eda240317@VM-0-14-ubuntu:~/lhc/LoReHyPar$ ./runmt.sh case02
 -- Configuring done (0.0s)
 -- Generating done (0.0s)
--- Build files have been written to: /home/eda240317/LoReHyPar/build
+-- Build files have been written to: /home/eda240317/lhc/LoReHyPar/build
+[ 14%] Building CXX object CMakeFiles/LoReHyPar.dir/hypar.cpp.o
+[ 28%] Building CXX object CMakeFiles/LoReHyPar.dir/coarsen.cpp.o
+[ 42%] Building CXX object CMakeFiles/LoReHyPar.dir/initialpar.cpp.o
+[ 57%] Building CXX object CMakeFiles/LoReHyPar.dir/refine.cpp.o
+[ 71%] Linking CXX static library libLoReHyPar.a
 [ 71%] Built target LoReHyPar
 [ 85%] Building CXX object CMakeFiles/partitioner.dir/main.cpp.o
 [100%] Linking CXX executable partitioner
@@ -343,31 +348,29 @@ Input Net Finished: 1239
 Reading Solution......
 Input Topo Finished: 11
 Reading FPGA......
-Input Solution Finished: 671
+Input Solution Finished: 662
 ----------------------------
-Resources of FPGA1: [ 707 209 119 183 190 173 199 194 ]
-Resources of FPGA2: [ 449 185 180 120 158 115 189 134 ]
-Resources of FPGA3: [ 739 86 53 75 76 64 91 94 ]
-Resources of FPGA4: [ 27 34 29 39 48 50 43 36 ]
-Resources of FPGA5: [ 689 107 150 139 126 101 160 144 ]
-Resources of FPGA6: [ 660 239 172 129 159 200 144 258 ]
-Resources of FPGA7: [ 748 102 101 101 101 125 99 131 ]
-Resources of FPGA8: [ 747 183 107 126 99 121 107 142 ]
-Total extern cut of FPGA1: 557
-Total extern cut of FPGA2: 209
-Total extern cut of FPGA3: 563
-Total extern cut of FPGA4: 15
-Total extern cut of FPGA5: 738
-Total extern cut of FPGA6: 663
-Total extern cut of FPGA7: 734
-Total extern cut of FPGA8: 486
+Resources of FPGA1: [ 535 229 162 177 192 174 193 228 ]
+Resources of FPGA2: [ 628 207 194 130 136 125 178 198 ]
+Resources of FPGA3: [ 732 142 87 119 74 133 105 116 ]
+Resources of FPGA4: [ 39 60 44 72 63 29 46 72 ]
+Resources of FPGA5: [ 733 158 119 129 139 202 183 166 ]
+Resources of FPGA6: [ 648 92 65 67 68 78 102 112 ]
+Resources of FPGA7: [ 748 155 140 90 125 106 126 127 ]
+Resources of FPGA8: [ 735 99 99 82 99 81 90 85 ]
+Total extern cut of FPGA1: 511
+Total extern cut of FPGA2: 627
+Total extern cut of FPGA3: 529
+Total extern cut of FPGA4: 14
+Total extern cut of FPGA5: 817
+Total extern cut of FPGA6: 559
+Total extern cut of FPGA7: 540
+Total extern cut of FPGA8: 497
 
 Congratulations! Solution is legal.
 ----------------------------
-Total Hop Length = 3651
+Total Hop Length = 3853
 ----------------------------
-Time for iteration 1: 74s
-Score for iteration 1: 3651.00
 Test succeeded for iteration 2.
 Reading FPGA......
 Input FPGA Finished: 8
@@ -378,31 +381,29 @@ Input Net Finished: 1239
 Reading Solution......
 Input Topo Finished: 11
 Reading FPGA......
-Input Solution Finished: 657
+Input Solution Finished: 653
 ----------------------------
-Resources of FPGA1: [ 748 99 112 95 115 138 130 136 ]
-Resources of FPGA2: [ 710 172 168 101 158 150 192 181 ]
-Resources of FPGA3: [ 660 100 77 92 82 93 135 116 ]
-Resources of FPGA4: [ 50 87 66 83 57 39 95 60 ]
-Resources of FPGA5: [ 747 154 100 109 117 110 108 163 ]
-Resources of FPGA6: [ 732 79 98 69 111 81 95 81 ]
-Resources of FPGA7: [ 671 256 195 171 171 224 155 258 ]
-Resources of FPGA8: [ 431 162 110 128 83 98 115 119 ]
-Total extern cut of FPGA1: 744
-Total extern cut of FPGA2: 744
-Total extern cut of FPGA3: 556
-Total extern cut of FPGA4: 15
-Total extern cut of FPGA5: 532
-Total extern cut of FPGA6: 498
-Total extern cut of FPGA7: 665
-Total extern cut of FPGA8: 381
+Resources of FPGA1: [ 408 267 227 202 250 185 210 238 ]
+Resources of FPGA2: [ 724 179 120 150 95 131 137 142 ]
+Resources of FPGA3: [ 742 92 63 60 95 109 104 99 ]
+Resources of FPGA4: [ 729 120 76 122 84 86 107 99 ]
+Resources of FPGA5: [ 29 52 32 25 16 23 56 29 ]
+Resources of FPGA6: [ 717 175 120 85 116 158 151 164 ]
+Resources of FPGA7: [ 748 105 123 118 120 100 142 169 ]
+Resources of FPGA8: [ 734 127 142 104 129 142 101 172 ]
+Total extern cut of FPGA1: 293
+Total extern cut of FPGA2: 625
+Total extern cut of FPGA3: 627
+Total extern cut of FPGA4: 530
+Total extern cut of FPGA5: 16
+Total extern cut of FPGA6: 820
+Total extern cut of FPGA7: 790
+Total extern cut of FPGA8: 494
 
 Congratulations! Solution is legal.
 ----------------------------
-Total Hop Length = 3946
+Total Hop Length = 3755
 ----------------------------
-Time for iteration 2: 79s
-Score for iteration 2: 3946.00
 Test succeeded for iteration 3.
 Reading FPGA......
 Input FPGA Finished: 8
@@ -413,31 +414,29 @@ Input Net Finished: 1239
 Reading Solution......
 Input Topo Finished: 11
 Reading FPGA......
-Input Solution Finished: 651
+Input Solution Finished: 648
 ----------------------------
-Resources of FPGA1: [ 716 191 188 173 186 187 182 214 ]
-Resources of FPGA2: [ 742 293 250 203 246 276 289 273 ]
-Resources of FPGA3: [ 736 240 135 175 195 140 137 174 ]
-Resources of FPGA4: [ 415 152 114 133 106 122 132 168 ]
-Resources of FPGA5: [ 7 24 13 10 1 6 17 9 ]
-Resources of FPGA6: [ 748 86 59 43 46 66 84 73 ]
-Resources of FPGA7: [ 663 75 118 76 93 89 127 102 ]
-Resources of FPGA8: [ 748 63 39 54 52 28 36 77 ]
-Total extern cut of FPGA1: 559
-Total extern cut of FPGA2: 667
-Total extern cut of FPGA3: 514
-Total extern cut of FPGA4: 209
-Total extern cut of FPGA5: 7
-Total extern cut of FPGA6: 735
-Total extern cut of FPGA7: 729
-Total extern cut of FPGA8: 554
+Resources of FPGA1: [ 671 157 93 104 103 158 139 162 ]
+Resources of FPGA2: [ 706 142 177 146 149 129 162 195 ]
+Resources of FPGA3: [ 747 126 143 105 94 69 100 103 ]
+Resources of FPGA4: [ 428 125 105 70 104 76 156 106 ]
+Resources of FPGA5: [ 39 47 34 56 27 63 55 60 ]
+Resources of FPGA6: [ 658 220 147 147 195 166 172 223 ]
+Resources of FPGA7: [ 748 155 74 107 107 138 109 134 ]
+Resources of FPGA8: [ 741 149 134 122 135 122 105 144 ]
+Total extern cut of FPGA1: 556
+Total extern cut of FPGA2: 742
+Total extern cut of FPGA3: 498
+Total extern cut of FPGA4: 388
+Total extern cut of FPGA5: 16
+Total extern cut of FPGA6: 671
+Total extern cut of FPGA7: 689
+Total extern cut of FPGA8: 592
 
 Congratulations! Solution is legal.
 ----------------------------
-Total Hop Length = 3554
+Total Hop Length = 3776
 ----------------------------
-Time for iteration 3: 73s
-Score for iteration 3: 3554.00
 Test succeeded for iteration 4.
 Reading FPGA......
 Input FPGA Finished: 8
@@ -448,37 +447,177 @@ Input Net Finished: 1239
 Reading Solution......
 Input Topo Finished: 11
 Reading FPGA......
-Input Solution Finished: 663
+Input Solution Finished: 675
 ----------------------------
-Resources of FPGA1: [ 550 300 262 231 258 244 298 263 ]
-Resources of FPGA2: [ 746 276 216 234 247 244 289 276 ]
-Resources of FPGA3: [ 723 92 73 71 99 60 62 92 ]
-Resources of FPGA4: [ 725 116 99 73 93 89 98 109 ]
-Resources of FPGA5: [ 0 0 0 0 0 0 0 0 ]
-Resources of FPGA6: [ 725 87 105 82 104 113 123 155 ]
-Resources of FPGA7: [ 627 188 114 83 111 157 120 182 ]
-Resources of FPGA8: [ 742 93 53 81 34 51 38 77 ]
-Total extern cut of FPGA1: 387
-Total extern cut of FPGA2: 688
-Total extern cut of FPGA3: 495
-Total extern cut of FPGA4: 512
-Total extern cut of FPGA5: 0
-Total extern cut of FPGA6: 781
-Total extern cut of FPGA7: 650
-Total extern cut of FPGA8: 515
+Resources of FPGA1: [ 195 283 261 231 220 260 266 255 ]
+Resources of FPGA2: [ 728 254 175 226 243 184 257 231 ]
+Resources of FPGA3: [ 376 65 72 45 57 24 40 74 ]
+Resources of FPGA4: [ 737 47 46 46 38 28 36 70 ]
+Resources of FPGA5: [ 695 173 87 111 82 107 89 124 ]
+Resources of FPGA6: [ 666 84 118 68 100 98 130 120 ]
+Resources of FPGA7: [ 718 129 83 72 91 163 126 161 ]
+Resources of FPGA8: [ 728 116 99 81 93 89 98 109 ]
+Total extern cut of FPGA1: 17
+Total extern cut of FPGA2: 555
+Total extern cut of FPGA3: 203
+Total extern cut of FPGA4: 563
+Total extern cut of FPGA5: 572
+Total extern cut of FPGA6: 729
+Total extern cut of FPGA7: 796
+Total extern cut of FPGA8: 533
 
 Congratulations! Solution is legal.
 ----------------------------
-Total Hop Length = 3908
+Total Hop Length = 3968
 ----------------------------
-Time for iteration 4: 73s
-Score for iteration 4: 3908.00
-Average Total Hop Length = 3764.75
-Average Score = 3764.75
-Score Variance = 27681.68
+Average Total Hop Length = 3838.00
 ```
 
-## priority queue with one more ghg
+## random first, pq next
 
 ```cpp
+eda240317@VM-0-14-ubuntu:~/lhc/LoReHyPar$ ./runmt.sh case02
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/eda240317/lhc/LoReHyPar/build
+[ 14%] Building CXX object CMakeFiles/LoReHyPar.dir/hypar.cpp.o
+[ 28%] Linking CXX static library libLoReHyPar.a
+[ 71%] Built target LoReHyPar
+[ 85%] Building CXX object CMakeFiles/partitioner.dir/main.cpp.o
+[100%] Linking CXX executable partitioner
+[100%] Built target partitioner
+Build succeeded.
+Test succeeded for iteration 1.
+Reading FPGA......
+Input FPGA Finished: 8
+Reading Node......
+Input Node Finished: 600
+Reading Net......
+Input Net Finished: 1239
+Reading Solution......
+Input Topo Finished: 11
+Reading FPGA......
+Input Solution Finished: 684
+----------------------------
+Resources of FPGA1: [ 703 247 176 174 171 201 225 221 ]
+Resources of FPGA2: [ 748 148 189 145 165 140 209 164 ]
+Resources of FPGA3: [ 745 150 118 140 72 89 128 131 ]
+Resources of FPGA4: [ 745 109 103 81 123 91 86 105 ]
+Resources of FPGA5: [ 308 89 58 59 106 87 59 105 ]
+Resources of FPGA6: [ 46 74 71 68 82 81 53 94 ]
+Resources of FPGA7: [ 725 201 106 129 117 169 148 203 ]
+Resources of FPGA8: [ 748 170 103 100 127 100 132 132 ]
+Total extern cut of FPGA1: 761
+Total extern cut of FPGA2: 745
+Total extern cut of FPGA3: 524
+Total extern cut of FPGA4: 495
+Total extern cut of FPGA5: 285
+Total extern cut of FPGA6: 15
+Total extern cut of FPGA7: 707
+Total extern cut of FPGA8: 534
+
+Congratulations! Solution is legal.
+----------------------------
+Total Hop Length = 3862
+----------------------------
+Test succeeded for iteration 2.
+Reading FPGA......
+Input FPGA Finished: 8
+Reading Node......
+Input Node Finished: 600
+Reading Net......
+Input Net Finished: 1239
+Reading Solution......
+Input Topo Finished: 11
+Reading FPGA......
+Input Solution Finished: 664
+----------------------------
+Resources of FPGA1: [ 723 122 139 121 174 115 123 142 ]
+Resources of FPGA2: [ 747 208 156 114 154 149 221 199 ]
+Resources of FPGA3: [ 648 97 69 95 53 64 134 81 ]
+Resources of FPGA4: [ 43 57 67 81 60 58 38 65 ]
+Resources of FPGA5: [ 748 133 130 158 105 117 100 144 ]
+Resources of FPGA6: [ 653 251 140 144 154 199 147 216 ]
+Resources of FPGA7: [ 748 103 83 95 115 124 125 139 ]
+Resources of FPGA8: [ 437 137 116 98 107 108 133 115 ]
+Total extern cut of FPGA1: 509
+Total extern cut of FPGA2: 742
+Total extern cut of FPGA3: 553
+Total extern cut of FPGA4: 15
+Total extern cut of FPGA5: 529
+Total extern cut of FPGA6: 668
+Total extern cut of FPGA7: 748
+Total extern cut of FPGA8: 377
+
+Congratulations! Solution is legal.
+----------------------------
+Total Hop Length = 3856
+----------------------------
+Test succeeded for iteration 3.
+Reading FPGA......
+Input FPGA Finished: 8
+Reading Node......
+Input Node Finished: 600
+Reading Net......
+Input Net Finished: 1239
+Reading Solution......
+Input Topo Finished: 11
+Reading FPGA......
+Input Solution Finished: 676
+----------------------------
+Resources of FPGA1: [ 748 125 167 136 152 178 193 208 ]
+Resources of FPGA2: [ 718 199 153 134 195 232 218 200 ]
+Resources of FPGA3: [ 665 113 81 107 125 109 100 125 ]
+Resources of FPGA4: [ 46 94 50 72 70 40 74 94 ]
+Resources of FPGA5: [ 423 111 128 127 111 76 83 84 ]
+Resources of FPGA6: [ 748 174 115 128 149 106 144 141 ]
+Resources of FPGA7: [ 748 219 139 111 98 118 123 139 ]
+Resources of FPGA8: [ 720 112 74 113 68 74 84 113 ]
+Total extern cut of FPGA1: 739
+Total extern cut of FPGA2: 818
+Total extern cut of FPGA3: 540
+Total extern cut of FPGA4: 14
+Total extern cut of FPGA5: 205
+Total extern cut of FPGA6: 630
+Total extern cut of FPGA7: 662
+Total extern cut of FPGA8: 525
+
+Congratulations! Solution is legal.
+----------------------------
+Total Hop Length = 3762
+----------------------------
+Test succeeded for iteration 4.
+Reading FPGA......
+Input FPGA Finished: 8
+Reading Node......
+Input Node Finished: 600
+Reading Net......
+Input Net Finished: 1239
+Reading Solution......
+Input Topo Finished: 11
+Reading FPGA......
+Input Solution Finished: 668
+----------------------------
+Resources of FPGA1: [ 748 182 154 186 192 192 209 179 ]
+Resources of FPGA2: [ 690 296 250 214 255 275 265 248 ]
+Resources of FPGA3: [ 464 250 161 205 180 189 215 236 ]
+Resources of FPGA4: [ 14 24 24 23 18 4 24 32 ]
+Resources of FPGA5: [ 746 106 102 72 90 65 76 88 ]
+Resources of FPGA6: [ 748 51 32 54 51 34 41 64 ]
+Resources of FPGA7: [ 594 138 137 95 102 101 121 149 ]
+Resources of FPGA8: [ 748 65 51 44 47 90 84 89 ]
+Total extern cut of FPGA1: 514
+Total extern cut of FPGA2: 713
+Total extern cut of FPGA3: 385
+Total extern cut of FPGA4: 5
+Total extern cut of FPGA5: 469
+Total extern cut of FPGA6: 554
+Total extern cut of FPGA7: 615
+Total extern cut of FPGA8: 850
+
+Congratulations! Solution is legal.
+----------------------------
+Total Hop Length = 3918
+----------------------------
+Average Total Hop Length = 3849.50
 ```

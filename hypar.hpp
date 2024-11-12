@@ -141,12 +141,12 @@ public:
     void k_way_localized_refine(int sel);
     void fast_k_way_localized_refine(int num, int sel);
     void only_fast_k_way_localized_refine(int num, int sel);
-    void add_logic_replication_og(long long &hop);
-    void add_logic_replication_pq(long long &hop);
-    void add_logic_replication_rd(long long &hop);
+    void add_logic_replication_og();
+    void add_logic_replication_pq();
+    void add_logic_replication_rd();
 
-    void run(bool &valid, long long &hop);
-    void run_nc(bool &valid, long long &hop);
+    void run();
+    void run_nc();
     void evaluate(bool &valid, long long &hop);
 };
 

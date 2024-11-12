@@ -37,6 +37,7 @@ void HyPar::SCLa_propagation() {
             }
         }
     }
+    std::shuffle(unlabeled_nodes.begin(), unlabeled_nodes.end(), rng);
     for (int u : unlabeled_nodes) {
         std::shuffle(fpgaVec.begin(), fpgaVec.end(), rng);
         std::unordered_set<int> toFpga(fpgaVec.begin(), fpgaVec.end());
@@ -264,7 +265,7 @@ void HyPar::initial_partition() {
         HyPar tmp = *this;
         tmp.SCLa_propagation();
         tmp.evaluate(valid, hop);
-        if (bestvalid < valid || (bestvalid == valid && hop < minHop)) {
+        if (bestvalid < valid || hop < minHop) {
             best = std::move(tmp);
             bestvalid = valid;
             minHop = hop;
@@ -276,7 +277,7 @@ void HyPar::initial_partition() {
         flag = false;
         greedy_hypergraph_growth(1);
         evaluate(valid, hop);
-        if (bestvalid < valid || (bestvalid == valid && hop < minHop)) {
+        if (bestvalid < valid || hop < minHop) {
             flag = true;
             bestvalid = valid;
             minHop = hop;
@@ -294,7 +295,7 @@ void HyPar::fast_initial_partition() {
         flag = false;
         greedy_hypergraph_growth(1);
         evaluate(valid, hop);
-        if (bestvalid < valid || (bestvalid == valid && hop < minHop)) {
+        if (bestvalid < valid || hop < minHop) {
             flag = true;
             bestvalid = valid;
             minHop = hop;

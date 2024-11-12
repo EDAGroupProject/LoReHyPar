@@ -195,7 +195,7 @@ void HyPar::only_fast_refine() {
 
 // didn't consider the of the influence of the formerly replicated nodes on the gain calculation
 // the hop gain calculation is inaccurate
-void HyPar::add_logic_replication_og(long long &hop) {
+void HyPar::add_logic_replication_og() {
     std::vector<std::unordered_set<int>> sources(nodes.size());
     std::vector<int> net_hop(nets.size(), 0);
     std::vector<int> net_order;
@@ -211,7 +211,7 @@ void HyPar::add_logic_replication_og(long long &hop) {
         }
 
         int total_hop = 0;
-        int threshold = 2;
+        double threshold = double(maxHop) * 0.5;
         for (const auto &[f, cnt] : net.fpgas) {
             if (cnt > 0 && f != sf) {
                 int hop_distance = fpgaMap[sf][f];
@@ -271,7 +271,6 @@ void HyPar::add_logic_replication_og(long long &hop) {
                 }
 
                 if (!flag && conn <= fpgas[tf].maxConn && gain > 0) {
-                    hop -= gain;
                     int new_s = nodes.size();
                     nodes.push_back(Node{ nodes[s].name + "*", s, tf });
                     fpgas[tf].nodes.insert(new_s);
@@ -296,7 +295,7 @@ void HyPar::add_logic_replication_og(long long &hop) {
     }
 }
 
-void HyPar::add_logic_replication_pq(long long &hop) {
+void HyPar::add_logic_replication_pq() {
     std::vector<std::unordered_set<int>> sources(nodes.size());
     std::priority_queue<std::tuple<int, int, int>> gain_map; // (gain, net, fpga)
     for (size_t i = 0; i < nets.size(); ++i) {
@@ -365,7 +364,6 @@ void HyPar::add_logic_replication_pq(long long &hop) {
             }
 
             if (!flag && conn <= fpgas[tf].maxConn && gain > 0) {
-                hop -= gain;
                 int new_s = nodes.size();
                 nodes.push_back(Node{ nodes[s].name + "*", s, tf });
                 fpgas[tf].nodes.insert(new_s);
@@ -390,7 +388,7 @@ void HyPar::add_logic_replication_pq(long long &hop) {
     }
 }
 
-void HyPar::add_logic_replication_rd(long long &hop) {
+void HyPar::add_logic_replication_rd() {
     std::vector<std::unordered_set<int>> sources(nodes.size());
     std::vector<std::pair<int, int>> gain_map; // (net, fpga)
     for (size_t i = 0; i < nets.size(); ++i) {
@@ -458,7 +456,6 @@ void HyPar::add_logic_replication_rd(long long &hop) {
             }
 
             if (!flag && conn <= fpgas[tf].maxConn && gain > 0) {
-                hop -= gain;
                 int new_s = nodes.size();
                 nodes.push_back(Node{ nodes[s].name + "*", s, tf });
                 fpgas[tf].nodes.insert(new_s);
