@@ -216,18 +216,16 @@ void HyPar::activate_max_hop_nodes(int sel) {
     if (active_nodes.empty()) {
         return;
     }
-    auto it = active_nodes.begin();
-    int size = active_nodes.size();
-    for (int i = 0; i < size; ++i) {
-        int u = *it;
+    std::unordered_set<int> to_insert;
+    for (int u : active_nodes) {
         for (int net : nodes[u].nets) {
             for (int i = 0; i < nets[net].size; ++i) {
                 int v = nets[net].nodes[i];
-                active_nodes.insert(v);
+                to_insert.insert(v);
             }
         }
-        ++it;
     }
+    active_nodes.insert(to_insert.begin(), to_insert.end());
     for (int node : active_nodes) {
         _cal_gain(node, nodes[node].fpga, sel, gain_map);
     }

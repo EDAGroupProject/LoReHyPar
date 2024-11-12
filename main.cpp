@@ -33,8 +33,8 @@ void run_nc_mt(HyPar &hp, bool &valid, long long &hop) {
 }
 
 void next_round(std::vector<std::shared_ptr<HyPar>> &hp_mt, std::vector<std::thread> &threads, const int num_threads) {
-    bool valid[num_threads]{}, bestvalid = false;
-    long long hop[num_threads]{}, besthop = __LONG_LONG_MAX__;
+    bool valid[4]{}, bestvalid = false;
+    long long hop[4]{}, besthop = __LONG_LONG_MAX__;
     hp_mt[0] = std::make_shared<HyPar>(inputDir, outputFile);
     for (int i = 1; i < num_threads; ++i) {
         hp_mt[i] = std::make_shared<HyPar>(*hp_mt[0]);
@@ -88,22 +88,22 @@ int main(int argc, char **argv) {
     size_t m0 = get_memory_usage();
     std::vector<std::shared_ptr<HyPar>> hp_mt;
     std::vector<std::thread> threads;
-    hp_mt.push_back(std::make_shared<HyPar>(inputDir, outputFile));
+    hp_mt.emplace_back(std::make_shared<HyPar>(inputDir, outputFile));
     int pin = hp_mt[0]->pin;
     hp_mt[0]->coarsen();
     size_t m1 = get_memory_usage();
     size_t hp_memory = m1 - m0;
     int num_threads = int(std::min(size_t(4), MEMORY_LIMIT /  (1 + hp_memory)));
-    bool valid[num_threads]{}, bestvalid = false;
-    long long hop[num_threads]{}, besthop = __LONG_LONG_MAX__;
+    bool valid[4]{}, bestvalid = false;
+    long long hop[4]{}, besthop = __LONG_LONG_MAX__;
     for (int i = 1; i < num_threads; ++i) {
-        hp_mt.push_back(std::make_shared<HyPar>(*hp_mt[0]));
+        hp_mt.emplace_back(std::make_shared<HyPar>(*hp_mt[0]));
         size_t memory_usage = get_memory_usage();
         if (memory_usage + hp_memory >= MEMORY_LIMIT) {
-            num_threads = i + 1;
             break;
         }
     }
+    num_threads = hp_mt.size();
     for (int i = 0; i < num_threads; ++i) {
         threads.emplace_back(std::thread(run_nc_mt, std::ref(*hp_mt[i]), std::ref(valid[i]), std::ref(hop[i])));
     }
